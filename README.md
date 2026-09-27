@@ -11,12 +11,17 @@ Le monde 3D utilise des modules JavaScript : il faut un petit serveur local
 (ouvrir le fichier directement ne marche pas). Celui-ci désactive le cache,
 pour que chaque rechargement prenne la dernière version des fichiers.
 
+En ligne : https://var-poro.github.io/whichwowshouldiplay/ (GitHub Pages,
+publié à chaque push sur `main`).
+
+En local :
+
 ```bash
-cd ~/which-wow && python3 tools/serve.py
+cd ~/which-wow && python3 tools/serve.py 8781
 ```
 
-Puis http://localhost:8765 (le monde) ou http://localhost:8765/quiz.html
-(le quiz seul, sans le monde).
+Puis http://localhost:8781 (le monde) ou http://localhost:8781/quiz.html
+(le quiz seul, sans le monde). Sans numéro, le serveur prend le port 8765.
 
 Comme dans le jeu, on passe d'abord par l'écran de connexion (faux : les
 identifiants sont déjà remplis et ne peuvent pas être changés), puis par la
