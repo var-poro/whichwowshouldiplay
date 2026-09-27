@@ -1,0 +1,2969 @@
+/* Le monde 3D et son interface (index.html). Même principe que la fenêtre
+   de quête : pixels du jeu, agrandis par --s. */
+
+body.world {
+  display: block;
+  overflow: hidden;
+  background: #000;
+  user-select: none;
+}
+
+body.world footer {
+  display: none;
+}
+
+#world {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  cursor: var(--cursor);
+}
+
+#world[data-cursor="speak"] {
+  cursor: url("assets/ui/Speak.PNG") 2 2, auto;
+}
+
+#world[data-cursor="unable"] {
+  cursor: url("assets/ui/UnableSpeak.PNG") 2 2, auto;
+}
+
+#world.dragging {
+  cursor: none;
+}
+
+/* La fenêtre de quête s'ouvre à gauche, comme les fenêtres du jeu. */
+body.world #app {
+  position: fixed;
+  inset: 0;
+  padding: 0 !important;
+  pointer-events: none;
+  z-index: 10;
+}
+
+body.world .stage {
+  position: absolute;
+  left: 28px;
+  top: 108px;
+  pointer-events: auto;
+}
+
+body.world .mainbar {
+  pointer-events: auto;
+}
+
+/* ---------- Interface du monde ---------- */
+
+/* Tout le HUD garde une marge avec le bord de l'écran (16 px d'écran). */
+.hud {
+  position: fixed;
+  inset: calc(16px / var(--hud, 1));
+  zoom: var(--hud, 1);
+  pointer-events: none;
+  z-index: 5;
+  font-family: var(--friz);
+}
+
+/* Cadres d'unité : UI-TargetingFrame (256 × 128). Cible : portrait à droite ;
+   joueur : la même texture retournée, portrait à gauche. */
+.unit {
+  position: absolute;
+  top: -6px;
+  width: 256px;
+  height: 128px;
+}
+
+.unit.player {
+  left: -12px;
+}
+
+.unit.target {
+  left: 238px;
+}
+
+.unit-art {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: url("assets/ui/UI-TargetingFrame.PNG");
+}
+
+.player .unit-art {
+  transform: scaleX(-1);
+}
+
+/* Mesures sur UI-TargetingFrame (cadre de cible) : trou du portrait x 154–208,
+   y 17–71 ; creux du nom et des barres x 31–145 (centre 88,5), nom y 24–39,
+   barres y 43–50 et 54–61 ; anneau du niveau centré en (201, 67). Le nom et
+   les barres (et leur fond) vont jusqu'à x 152, sous le cadre, comme en jeu
+   (TargetFrameNameBackground, 119 px de large) ; leurs textes, eux, sont
+   centrés sur le creux visible (TargetFrameTextureFrameName : x 88,5).
+   Le joueur utilise la texture retournée : x devient 256 − x. */
+.unit-portrait {
+  position: absolute;
+  top: 18px;
+  left: 154px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.player .unit-portrait {
+  left: 48px;
+}
+
+.unit-name {
+  position: absolute;
+  top: 24px;
+  left: 31px;
+  width: 122px;
+  height: 16px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  font-size: 11px;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #000;
+  /* texte centré sur le creux (x 31–145), pas sur le fond qui passe sous le
+     cadre jusqu'à 152 : avant, 3,5 px trop près du portrait */
+  padding-right: 7px;
+}
+
+.player .unit-name {
+  left: 103px;
+  padding: 0 0 0 7px;
+}
+
+/* fond du nom : texture du jeu teintée (bleu pour soi, jaune pour un PNJ neutre) */
+.unit-name::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: url("assets/ui/UI-TargetingFrame-LevelBackground.PNG") 0 0 / 100% 100%, var(--name-bg);
+  background-blend-mode: multiply;
+  opacity: 0.85;
+}
+
+.player .unit-name {
+  --name-bg: #0059c8;
+}
+
+.target .unit-name {
+  --name-bg: #d8b400;
+}
+
+.unit-bar {
+  position: absolute;
+  left: 31px;
+  width: 122px;
+  height: 8px;
+  z-index: 1;
+  /* --w : part remplie (la vie qui baisse) */
+  background:
+    url("assets/ui/UI-TargetingFrame-BarFill.PNG") 0 0 / var(--w, 100%) 100% no-repeat,
+    linear-gradient(var(--c), var(--c)) 0 0 / var(--w, 100%) 100% no-repeat;
+  background-blend-mode: multiply;
+}
+
+.player .unit-bar {
+  left: 103px;
+}
+
+.player .unit-bar span {
+  inset: 0 0 0 7px;
+}
+
+/* couleurs du jeu : vie vert pur, mana bleu pur */
+.unit-bar.hp {
+  top: 43px;
+  --c: #00ff00;
+}
+
+.unit-bar.mp {
+  top: 54px;
+  --c: #0000ff;
+}
+
+.unit-bar span {
+  position: absolute;
+  /* centré sur le creux, comme le nom (la barre passe 7 px sous le cadre) */
+  inset: 0 7px 0 0;
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 8px;
+  line-height: 1;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* niveau : disque sombre bien rond par-dessus l'anneau, chiffre centré */
+.unit-level {
+  position: absolute;
+  top: 58px;
+  left: 192px;
+  width: 18px;
+  height: 18px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: radial-gradient(circle, #2a2418 0%, #0d0b07 100%);
+  color: var(--gold);
+  font-size: 10px;
+  line-height: 1;
+  padding-top: 1px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.player .unit-level {
+  left: 46px;
+}
+
+.unit.ding .unit-portrait {
+  animation: ding 1.6s ease-out;
+}
+
+@keyframes ding {
+  0%,
+  100% {
+    box-shadow: none;
+  }
+  20% {
+    box-shadow: 0 0 0 3px #ffd100, 0 0 24px 8px #ffd100;
+  }
+}
+
+/* ---------- Au-dessus de Chromie ---------- */
+
+.nameplate {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 #000, 0 0 2px #000;
+}
+
+/* PNJ amical : nom et titre en vert, comme en jeu */
+.np-name {
+  color: #1eff1e;
+  font-size: 13px;
+}
+
+.world-label {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #000, 0 0 3px #000;
+}
+
+.np-title {
+  color: #1eff1e;
+  font-size: 10px;
+}
+
+/* Bulle : bordure du jeu en 9 morceaux, fond noir translucide, queue en bas. */
+/* bulle : apparaît et s'efface en fondu (classe « on ») */
+.bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transition: opacity 0.6s;
+  max-width: 220px;
+  padding: 6px 10px;
+  border-style: solid;
+  border-width: 16px;
+  border-image: url("assets/built/bubble9.png") 32 fill / 16px stretch;
+}
+
+.bubble-text {
+  margin: -8px -4px;
+  color: #ffffa0;
+  font-size: 12px;
+  line-height: 15px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Queue (CHATBUBBLE-TAIL, 64 × 64 affichée en 24 × 24, à l'échelle du cadre
+   de la bulle) : en bas à gauche de la bulle, comme en jeu, son bord plat
+   noir posé sur le liseré du bas (qu'elle masque) ; sa pointe, 31 px à droite
+   du bord de la bulle et 14 px sous elle, désigne celui qui parle. */
+.bubble-tail {
+  position: absolute;
+  left: -4px;
+  bottom: -34px;
+  width: 24px;
+  height: 24px;
+  background: url("assets/ui/CHATBUBBLE-TAIL.PNG") 0 0 / 24px 24px;
+}
+
+/* ---------- Discussion, erreurs, nom de zone ---------- */
+
+/* Discussion : neuf lignes visibles, l'historique défile à la molette ou avec
+   les boutons du jeu (colonne de gauche). Les vieilles lignes s'effacent, et
+   reviennent quand on survole la fenêtre ou qu'on lit plus haut. */
+.chat {
+  position: absolute;
+  left: 2px;
+  bottom: 100px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  font-size: 13px;
+  line-height: 16px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.chat-lines {
+  width: min(420px, calc(100vw / var(--hud, 1) - 56px));
+  max-height: 153px; /* 9 lignes de 17 px */
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  pointer-events: auto;
+}
+
+/* peu de lignes : collées en bas, comme le jeu */
+.chat-lines > :first-child {
+  margin-top: auto;
+}
+
+.chat-line {
+  flex: none;
+  transition: opacity 2s;
+}
+
+.chat-line.faded {
+  opacity: 0;
+}
+
+.chat:hover .chat-line.faded,
+.chat.scrolled .chat-line.faded {
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.chat-buttons {
+  display: flex;
+  flex-direction: column;
+  pointer-events: auto;
+}
+
+/* Boutons du jeu (ChatFrame1UpButton…) : 32 × 32, l'icône entière (x 2–28,
+   y 3–28 dans UI-ChatIcon-*), empilés avec 2 px de recouvrement
+   (bottomPadding = -2 dans FloatingChatFrame.xml). Avant : 24 × 24 recadrés
+   à partir de (4, 4), ce qui coupait 2 px du bord gauche et 1 px du haut. */
+.chat-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  background: var(--up) 0 0 / 32px 32px;
+}
+
+.chat-btn + .chat-btn {
+  margin-top: -2px;
+}
+
+.chat-btn.up {
+  --up: url("assets/ui/chat/UI-ChatIcon-ScrollUp-Up.PNG");
+  --down: url("assets/ui/chat/UI-ChatIcon-ScrollUp-Down.PNG");
+  --off: url("assets/ui/chat/UI-ChatIcon-ScrollUp-Disabled.PNG");
+}
+
+.chat-btn.down {
+  --up: url("assets/ui/chat/UI-ChatIcon-ScrollDown-Up.PNG");
+  --down: url("assets/ui/chat/UI-ChatIcon-ScrollDown-Down.PNG");
+  --off: url("assets/ui/chat/UI-ChatIcon-ScrollDown-Disabled.PNG");
+}
+
+.chat-btn.end {
+  --up: url("assets/ui/chat/UI-ChatIcon-ScrollEnd-Up.PNG");
+  --down: url("assets/ui/chat/UI-ChatIcon-ScrollEnd-Down.PNG");
+  --off: url("assets/ui/chat/UI-ChatIcon-ScrollEnd-Disabled.PNG");
+}
+
+.chat-btn:active:not(:disabled) {
+  background-image: var(--down);
+}
+
+.chat-btn:disabled {
+  background-image: var(--off);
+}
+
+/* un message arrivé pendant qu'on lit plus haut : le bouton « fin » clignote */
+.chat-btn.end.blink::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/chat/UI-ChatIcon-BlinkHilight.PNG") 0 0 / 32px 32px;
+  mix-blend-mode: plus-lighter;
+  animation: chat-blink 1s ease-in-out infinite alternate;
+}
+
+@keyframes chat-blink {
+  from {
+    opacity: 0;
+  }
+}
+
+.chat-line.system {
+  color: #ffff00;
+}
+
+.chat-line.say {
+  color: #ffffa0;
+}
+
+.chat-line.yell {
+  color: #ff4040;
+}
+
+.chat-line.level {
+  color: #ffff00;
+}
+
+.errors {
+  position: absolute;
+  top: 118px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #ff2020;
+  font-size: 16px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.errors.fade {
+  animation: fade-out 2.6s ease-in forwards;
+}
+
+@keyframes fade-out {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.zone-text {
+  position: absolute;
+  top: 150px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  opacity: 0;
+}
+
+.zone-text.show {
+  animation: zone 6s ease-in-out forwards;
+}
+
+@keyframes zone {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.zone-main {
+  color: #ffd100;
+  font-size: 36px;
+  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000, 0 0 8px #000;
+}
+
+.zone-sub {
+  margin-top: 4px;
+  color: #ffd100;
+  font-size: 20px;
+  text-shadow: 2px 2px 0 #000, 0 0 6px #000;
+}
+
+/* ---------- Minicarte : UI-MINIMAP-BORDER (256 × 256), cercle de 66 px
+   centré en (167.5, 105), bandeau du nom de zone en haut. ---------- */
+
+.minimap {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 256px;
+  height: 256px;
+}
+
+.minimap canvas {
+  position: absolute;
+  left: 101.5px;
+  top: 39px;
+  width: 132px;
+  height: 132px;
+  border-radius: 50%;
+}
+
+.mm-border {
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/UI-MINIMAP-BORDER.PNG");
+}
+
+.mm-zone {
+  position: absolute;
+  left: 85px;
+  top: 2px;
+  width: 166px;
+  height: 22px;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ---------- Écran de chargement ----------
+   L'image (2048 × 1153, posée en « contain ») a son propre bandeau de
+   parchemin en bas, lignes 972–1153 (centre 1062,5). La barre et
+   « Loading... » (84 px à eux deux) sont centrés dans ce bandeau, le
+   conseil posé 8 px au-dessus de lui, sur l'illustration : avant, collés à
+   5vh du bas de l'écran, le conseil chevauchait le bord orné du bandeau.
+   --ls : taille à l'écran d'un pixel de l'image. */
+
+.loading {
+  --ls: min(100vw / 2048, 100vh / 1153);
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  /* bas de l'image, puis centre du bandeau (90,5 px d'image au-dessus),
+     moins la moitié du bloc barre + texte */
+  padding-bottom: max(8px, calc((100vh - 1153 * var(--ls)) / 2 + 90.5 * var(--ls) - 42px));
+  background: #000 url("assets/ui/loadscreen_dawnoftheinfinite.jpg") center / contain no-repeat;
+  transition: opacity 0.9s;
+  font-family: var(--friz);
+}
+
+.loading.gone {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loading[hidden] {
+  display: none;
+}
+
+/* logo en haut à gauche, comme aux écrans d'accueil */
+.load-logo {
+  position: absolute;
+  left: 22px;
+  top: 14px;
+  width: 280px;
+  zoom: var(--glue, 1);
+}
+
+.load-tip {
+  max-width: 640px;
+  /* bas du conseil 8 px au-dessus du bandeau : 181 − 90,5 px d'image, moins
+     les 42 px du demi-bloc, plus 8 */
+  margin-bottom: max(8px, calc(90.5 * var(--ls) - 34px));
+  padding: 6px 14px;
+  color: #fff;
+  font-size: 15px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000, 0 0 6px #000;
+}
+
+.load-tip b {
+  color: var(--gold);
+  font-weight: normal;
+}
+
+/* Loading-BarBorder (512 × 64) : intérieur x 36–476, y 22–41. La barre fait
+   80 % de la largeur de l'image (et non de l'écran, qui peut être plus
+   large qu'elle) : bordure en trois morceaux (embouts de 36 px intacts,
+   milieu étiré), remplissage et étincelle suivent --p (0 à 1). */
+.load-bar {
+  position: relative;
+  width: max(160px, calc(0.8 * 2048 * var(--ls)));
+  height: 64px;
+}
+
+.load-fill {
+  position: absolute;
+  left: 36px;
+  top: 22px;
+  height: 19px;
+  width: calc((100% - 72px) * var(--p, 0));
+  /* bleu du mana ; la texture du jeu sert de relief */
+  background: url("assets/built/loading-fill-mana.png") 0 0 / 100% 100%;
+}
+
+.load-spark {
+  position: absolute;
+  top: 16px;
+  left: calc(36px + (100% - 72px) * var(--p, 0) - 16px);
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-LoadingBar-Spark.PNG") 0 0 / 100% 100%;
+  mix-blend-mode: plus-lighter;
+}
+
+.load-border {
+  position: absolute;
+  inset: 0;
+  border-style: solid;
+  border-width: 0 36px;
+  border-image: url("assets/ui/Loading-BarBorder.PNG") 0 36 fill / 0 36px stretch;
+}
+
+.load-text {
+  margin-top: 4px;
+  color: var(--gold);
+  font-size: 13px;
+  line-height: 16px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* écran trop petit pour que le bandeau (181 px d'image) contienne la barre
+   (--ls < 0,464) : barre et conseil en bas de l'écran, sous l'image */
+@media (max-width: 949px), (max-height: 534px) {
+  .loading {
+    padding-bottom: 5vh;
+  }
+
+  .load-tip {
+    margin-bottom: 14px;
+  }
+
+  .load-bar {
+    width: 80vw;
+  }
+}
+
+.loading .enter {
+  width: 200px;
+  height: 30px;
+  margin-top: 8px;
+  font-size: 15px;
+  border-width: 0 14px;
+}
+
+/* Petits écrans : la fenêtre de quête colle au bord, sous les cadres. */
+@media (max-width: 600px) {
+  body.world .stage {
+    left: 0;
+    top: 64px;
+  }
+}
+
+/* ---------- Menu du jeu et Options ----------
+   Boîte de dialogue du jeu : bordure UI-DialogBox-Border (9 morceaux de 32),
+   fond UI-DialogBox-Background-Dark à 11 px du bord, en-tête UI-DialogBox-Header. */
+
+.menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.wdialog {
+  position: relative;
+  zoom: var(--hud, 1);
+  padding: 30px 22px 18px;
+  border-style: solid;
+  border-width: 32px;
+  border-image: url("assets/built/dialog9.png") 32 / 32px stretch;
+  pointer-events: auto;
+  margin: -32px;
+}
+
+.wdialog::before {
+  content: "";
+  position: absolute;
+  inset: -21px;
+  z-index: -1;
+  background: url("assets/ui/UI-DialogBox-Background-Dark.PNG");
+}
+
+/* en-tête : partie utile de la texture 512 × 128 (x 119–392, y 5–78), à demi-taille */
+.wdialog-header {
+  position: absolute;
+  top: -44px;
+  left: 50%;
+  width: 256px;
+  height: 64px;
+  margin-left: -128px;
+  background: url("assets/ui/UI-DialogBox-Header.PNG") 0 0 / 256px 64px;
+}
+
+.wdialog-header span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 13px;
+  text-align: center;
+  color: var(--gold);
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.wdialog-body.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 144px;
+}
+
+.wdialog .wbtn {
+  height: 21px;
+  font-size: 11px;
+}
+
+.wdialog .gap {
+  height: 8px;
+}
+
+.wdialog h4 {
+  margin: 0 0 8px;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: normal;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.wdialog.options .wdialog-body {
+  width: 400px;
+}
+
+.wopt-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 16px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(0 0 0 / 0.25);
+}
+
+.wopt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* case à cocher du jeu : 32 × 32, partie visible 23 × 21 */
+.wcheck-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+  color: #fff;
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+  cursor: var(--cursor);
+}
+
+.wcheck {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  background: url("assets/ui/UI-CheckBox-Up.PNG");
+}
+
+.wcheck:active {
+  background-image: url("assets/ui/UI-CheckBox-Down.PNG");
+}
+
+.wcheck::before,
+.wcheck::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.wcheck::before {
+  background: url("assets/ui/UI-CheckBox-Highlight.PNG");
+  mix-blend-mode: plus-lighter;
+}
+
+.wcheck::after {
+  background: url("assets/ui/UI-CheckBox-Check.PNG");
+}
+
+.wcheck-row:hover .wcheck::before {
+  opacity: 1;
+}
+
+.wcheck[aria-checked="true"]::after {
+  opacity: 1;
+}
+
+.wopt-slider {
+  margin-bottom: 4px;
+}
+
+.wopt-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+  color: var(--gold);
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.wopt-value {
+  color: #fff;
+}
+
+.wdialog .wslider {
+  margin-top: 0;
+}
+
+.wdialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.wdialog-footer .wbtn {
+  width: 96px;
+}
+
+.keys-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: rgb(0 0 0 / 0.25);
+}
+
+.keys-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.keys-action {
+  color: #fff;
+}
+
+.keys-key {
+  color: var(--gold);
+}
+
+/* compacte, comme la fenêtre de mort : une ligne de texte et deux boutons */
+.wdialog.logout {
+  padding: 0 4px;
+  border-width: 16px;
+  border-image-width: 16px;
+}
+
+.wdialog.logout::before {
+  inset: -9px;
+}
+
+.wdialog.logout .wdialog-body {
+  width: 200px;
+  text-align: center;
+}
+
+.wdialog.logout .logout-text {
+  font-size: 12px;
+}
+
+.wdialog.logout .wdialog-footer {
+  margin-top: 6px;
+}
+
+.logout-text {
+  color: #fff;
+  font-size: 13px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.wdialog.logout .wdialog-footer {
+  justify-content: center;
+}
+
+/* ---------- Micro-boutons ----------
+   En bas à droite, sur la ligne de la barre d'XP, juste avant le sac, comme
+   la barre du jeu. Textures de Classic (32 × 64, bouton dans le bas)
+   affichées un peu moins hautes (32 × 58, comme les 28 × 58 du jeu) : on en
+   montre 28 × 36, le bouton entier (liseré du bas compris, ligne 61 de la
+   texture, soit y 35,2 ici). Comme en jeu (MainMenuBar de Classic), le bas
+   des micro-boutons et celui du sac sont à 2 px du bas de la barre : leurs
+   cadres se retrouvent centrés l'un sur l'autre. Avant : 33 px de haut, au
+   ras de l'écran, le liseré du bas coupé et les boutons 3 px plus bas que
+   le cadre du sac. */
+.micro-bar {
+  position: fixed;
+  /* collée au bouton du sac (placée par inventory.js) */
+  right: 39px;
+  bottom: 2px;
+  z-index: 20;
+  zoom: var(--hud, 1);
+  display: flex;
+}
+
+.micro-btn {
+  position: relative;
+  width: 28px;
+  height: 36px;
+  background: var(--up) -2px -22px / 32px 58px no-repeat;
+}
+
+.micro-btn:active,
+.micro-btn.on {
+  background-image: var(--down);
+}
+
+.micro-btn:hover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/micro/UI-MicroButton-Hilight.PNG") -2px -22px / 32px 58px no-repeat;
+  mix-blend-mode: plus-lighter;
+}
+
+.micro-ach {
+  --up: url("assets/ui/micro/UI-MicroButton-Achievement-Up.PNG");
+  --down: url("assets/ui/micro/UI-MicroButton-Achievement-Down.PNG");
+}
+
+.micro-quest {
+  --up: url("assets/ui/micro/UI-MICROBUTTON-QUEST-UP.PNG");
+  --down: url("assets/ui/micro/UI-MICROBUTTON-QUEST-DOWN.PNG");
+}
+
+.micro-world {
+  --up: url("assets/ui/micro/UI-MicroButton-World-Up.PNG");
+  --down: url("assets/ui/micro/UI-MicroButton-World-Down.PNG");
+}
+
+.micro-menu {
+  --up: url("assets/ui/micro/UI-MicroButton-MainMenu-Up.PNG");
+  --down: url("assets/ui/micro/UI-MicroButton-MainMenu-Down.PNG");
+}
+
+/* Éclair quand on franchit le bon portail. */
+.portal-flash {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.portal-flash.on {
+  animation: portal-flash 1.6s ease-out;
+}
+
+@keyframes portal-flash {
+  0% {
+    opacity: 0;
+  }
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------- Boutique (portail franchi) ----------
+   Carte : Store-Splash (578 × 268), bannière et anneau : Store-Main. */
+
+.shop-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 0.35), rgb(0 0 0 / 0.75));
+  font-family: var(--friz);
+}
+
+.shop-card {
+  position: relative;
+  zoom: var(--hud, 1);
+  width: 578px;
+  height: 268px;
+  background: url("assets/built/store-card.png");
+  filter: drop-shadow(0 10px 30px rgb(0 0 0 / 0.8));
+}
+
+.shop-banner {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  width: 355px;
+  height: 72px;
+  margin-left: -177px;
+  background: url("assets/built/store-banner.png");
+}
+
+.shop-banner span {
+  /* sur la partie plate du ruban (lignes opaques y 6–38 au milieu de
+     store-banner, centre 22,5) ; avant : inset 12 / 30, capitales centrées
+     en 27, 4,7 px trop bas */
+  position: absolute;
+  inset: 7px 70px 35px;
+  display: grid;
+  place-items: center;
+  color: #3b2308;
+  font-size: 14px;
+  text-shadow: 0 1px 0 rgb(255 240 200 / 0.5);
+}
+
+.shop-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Up.PNG");
+}
+
+.shop-close:active {
+  background-image: url("assets/ui/UI-Panel-MinimizeButton-Down.PNG");
+}
+
+.shop-close:hover {
+  filter: brightness(1.3);
+}
+
+.shop-art {
+  position: absolute;
+  left: 30px;
+  top: 44px;
+  width: 190px;
+  height: 196px;
+}
+
+.shop-burst {
+  position: absolute;
+  inset: 0;
+  background: url("assets/built/store-burst.png") center / contain no-repeat;
+  animation: shop-spin 18s linear infinite;
+  mix-blend-mode: plus-lighter;
+}
+
+@keyframes shop-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shop-icon {
+  /* centrée sur le trou de store-ring (x 9–64, y 8–63 : centre 37 ; 36,
+     soit 95 ; 97 ici) ; avant : top 66, 1 px trop bas */
+  position: absolute;
+  left: 63px;
+  top: 65px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+}
+
+.shop-ring {
+  position: absolute;
+  left: 58px;
+  top: 61px;
+  width: 73px;
+  height: 74px;
+  background: url("assets/built/store-ring.png");
+}
+
+.shop-info {
+  position: absolute;
+  left: 238px;
+  top: 40px;
+  right: 32px;
+  bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.shop-kind {
+  color: #bca676;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.shop-title {
+  margin: 2px 0 4px;
+  color: var(--gold);
+  font: 20px var(--friz);
+}
+
+.shop-tagline {
+  margin: 0 0 6px;
+  color: #e8d6ad;
+  font-size: 12px;
+}
+
+.shop-perks {
+  margin: 0;
+  padding-left: 14px;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.shop-price {
+  margin-top: auto;
+  color: #1eff00;
+  font-size: 11px;
+}
+
+.shop-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.shop-buttons .wbtn {
+  width: 130px;
+  height: 24px;
+  font-size: 12px;
+}
+
+/* « hidden » doit l'emporter sur display: grid des couches plein écran */
+.shop-layer[hidden],
+.menu-layer[hidden] {
+  display: none;
+}
+
+/* Journal de quêtes : à gauche comme les fenêtres du jeu, et à droite de la
+   fenêtre de Chromie quand les deux sont ouvertes (zoom : 351 + 12 px). */
+body.world .stage.log {
+  position: absolute;
+  left: 28px;
+  top: 108px;
+  pointer-events: auto;
+}
+
+body.world.quest-open .stage.log {
+  left: 391px;
+}
+
+/* Message de haut fait dans la discussion (le nom entre crochets, en or). */
+.chat-line.achievement {
+  color: #ffff00;
+}
+
+/* ---------- Hauts faits (world/achievements.js) ----------
+   Textures de l'AchievementFrame du client (assets/ui/ach/). */
+
+/* Alerte « Achievement Earned » : UI-Achievement-Alert-Background, cadre de
+   310 × 90 en haut à gauche de la texture 512 × 128. Mesures sur la texture :
+   bandeau rouge du nom y 36–52 (x 64–255), barre opaque y 16–73 (filets
+   clairs en 17 et 68). Positions du jeu (AchievementAlertFrameTemplate,
+   300 × 88, ramenées à la texture) : icône centrée en (37, 44), son cadre en
+   (36, 45) ; « Achievement Earned » et le nom centrés en x 161–162. */
+.ach-toasts {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 118px;
+  z-index: 30;
+  zoom: max(var(--hud, 1), 0.7); /* lisible sur téléphone */
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.ach-toast {
+  position: relative;
+  width: 310px;
+  height: 90px;
+  flex: none;
+  background: url("assets/ui/ach/UI-Achievement-Alert-Background.PNG") 0 0 no-repeat;
+  pointer-events: auto;
+  cursor: var(--cursor);
+  animation: ach-in 0.25s ease-out;
+}
+
+.ach-toast.out {
+  animation: ach-out 1.5s ease-in forwards;
+}
+
+@keyframes ach-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes ach-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* icône 50 × 50 dans son cadre UI-Achievement-IconFrame (72 × 72 utiles) */
+.ach-toast-icon {
+  /* centre (37, 44) ; le cadre (68 px visibles) déborde la barre de 5 px en
+     haut comme en bas. Avant : (38, 39), le cadre dépassait de 10 px en haut
+     et affleurait le bas. */
+  position: absolute;
+  left: 12px;
+  top: 19px;
+  width: 50px;
+  height: 50px;
+}
+
+.ach-toast-icon img,
+.ach-row-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ach-toast-iconframe,
+.ach-row-iconframe {
+  position: absolute;
+  left: -11px;
+  top: -10px;
+  width: 72px;
+  height: 72px;
+  background: url("assets/ui/ach/UI-Achievement-IconFrame.PNG") 0 0 / 128px 128px;
+}
+
+/* « Achievement Earned » : petite police noire du jeu (GameFontBlackTiny),
+   dans la bande claire sous la bordure du haut, comme l'AlertFrame du jeu
+   (ancré en haut, 23 px plus bas et 7 px à droite du centre) */
+.ach-toast-unlocked {
+  position: absolute;
+  left: 64px;
+  right: 50px;
+  top: 23px;
+  text-align: center;
+  color: #000;
+  font-size: 10px;
+  line-height: 12px;
+}
+
+.ach-toast-name {
+  /* x 69–253 : centré en 161, sous « Achievement Earned » (avant : 158,
+     4 px à gauche de lui) */
+  position: absolute;
+  left: 69px;
+  right: 57px;
+  top: 34px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  font-size: 13px;
+  line-height: 14px;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* écusson de points : quart haut-gauche d'UI-ACHIEVEMENT-SHIELDS (64 × 57 utiles),
+   intérieur noir centré en (31, 27) */
+.ach-toast-shield,
+.ach-row-shield {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  background: url("assets/ui/ach/UI-ACHIEVEMENT-SHIELDS.PNG") 0 0 / 128px 128px;
+}
+
+.ach-toast-shield {
+  right: 6px;
+  top: 12px;
+}
+
+.ach-toast-shield span,
+.ach-row-shield span {
+  position: absolute;
+  left: 0;
+  width: 62px;
+  top: 19px;
+  text-align: center;
+  color: #fff;
+  font-size: 15px;
+  line-height: 16px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* lueur : UI-Achievement-Alert-Glow (400 × 171 utiles), convertie en transparence
+   (assets/built/ach-glow.png) : en mode ADD, son fond noir réapparaissait,
+   car le toast animé isole son propre mélange. Centrée. */
+.ach-toast-glow {
+  position: absolute;
+  left: -45px;
+  top: -40px;
+  width: 400px;
+  height: 171px;
+  background: url("assets/built/ach-glow.png") 0 0 / 512px 256px;
+  opacity: 0;
+  pointer-events: none;
+  animation: ach-glow 1s ease-out;
+}
+
+@keyframes ach-glow {
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* reflet : même texture, x 400–467, y 0–72, qui balaie le cadre */
+.ach-toast-shine {
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 67px;
+  height: 72px;
+  background: url("assets/built/ach-glow.png") -400px 0 / 512px 256px;
+  opacity: 0;
+  pointer-events: none;
+  animation: ach-shine 0.9s ease-in 0.35s;
+}
+
+@keyframes ach-shine {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(240px);
+  }
+}
+
+/* Lien de haut fait dans la discussion */
+.ach-link {
+  color: #ffd100;
+}
+
+/* ---------- Fenêtre des hauts faits ----------
+   Bordure : UI-Achievement-WoodBorder (bord de fond du jeu, 19 px de bois),
+   coins recomposés en 9 morceaux dans assets/built/ach-wood9.png (118 × 119).
+   Fond : moitié haute d'UI-ACHIEVEMENT-ACHIEVEMENTBACKGROUND. */
+.ach-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-family: var(--friz);
+  --ach-z: max(var(--hud, 1), 0.7);
+}
+
+.ach-layer[hidden] {
+  display: none;
+}
+
+.ach-window {
+  position: relative;
+  zoom: var(--ach-z);
+  width: min(560px, calc(100vw / var(--ach-z) - 8px));
+  margin-top: 40px;
+  padding: 26px 4px 4px 6px;
+  border-style: solid;
+  border-width: 32px;
+  border-image: url("assets/built/ach-wood9.png") 32 / 32px round;
+  pointer-events: auto;
+  box-sizing: border-box;
+}
+
+.ach-window::before {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  z-index: -1;
+  background: url("assets/ui/ach/UI-ACHIEVEMENT-ACHIEVEMENTBACKGROUND.PNG") 0 0 / 100% 200%;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.8);
+}
+
+/* gargouilles de métal aux coins : UI-Achievement-WoodBorder-Corner (40 × 38 utiles) */
+.ach-corner {
+  position: absolute;
+  width: 40px;
+  height: 38px;
+  background: url("assets/ui/ach/UI-Achievement-WoodBorder-Corner.PNG") 0 0 / 64px 64px;
+  pointer-events: none;
+}
+
+.ach-corner.tl {
+  left: -38px;
+  top: -36px;
+}
+
+.ach-corner.tr {
+  right: -38px;
+  top: -36px;
+  transform: scaleX(-1);
+}
+
+.ach-corner.bl {
+  left: -38px;
+  bottom: -36px;
+  transform: scaleY(-1);
+}
+
+.ach-corner.br {
+  right: -38px;
+  bottom: -36px;
+  transform: scale(-1);
+}
+
+/* Fronton : UI-Achievement-Header (x 104–512, y 10–101) et son onglet gauche
+   retourné, recomposés dans assets/built/ach-header.png (530 × 91).
+   Plateau central : bande noire y 30–46, marbrure y 47–71, x 160–370. */
+.ach-header {
+  position: absolute;
+  left: 50%;
+  top: -96px;
+  width: 530px;
+  height: 91px;
+  margin-left: -265px;
+  background: url("assets/built/ach-header.png");
+  pointer-events: none;
+}
+
+.ach-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 31px;
+  text-align: center;
+  color: var(--gold);
+  font-size: 13px;
+  line-height: 15px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.ach-points {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 15px;
+  line-height: 20px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* UI-Achievement-TinyShield : 20 × 18 utiles sur 32 × 32 */
+.ach-tinyshield {
+  width: 20px;
+  height: 18px;
+  background: url("assets/ui/ach/UI-Achievement-TinyShield.PNG") 0 0 / 32px 32px;
+}
+
+/* bouton de fermeture du jeu, sur le coin haut droit du bois */
+.ach-close {
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  z-index: 2;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Up.PNG");
+}
+
+.ach-close:active {
+  background-image: url("assets/ui/UI-Panel-MinimizeButton-Down.PNG");
+}
+
+.ach-close:hover {
+  filter: brightness(1.3);
+}
+
+/* Barres de progression : UI-Achievement-ProgressBar-Border (224 × 25 utiles,
+   filet clair centré à 5 px du bord), posée par-dessus en 3 morceaux ;
+   remplissage UI-StatusBar teinté du vert du jeu (0, 0.6, 0). */
+.ach-bar {
+  position: relative;
+  height: 16px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.ach-bar::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-style: solid;
+  border-width: 12px;
+  border-image: url("assets/built/ach-bar9.png") 12 / 12px stretch;
+  pointer-events: none;
+}
+
+.ach-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: url("assets/ui/UI-StatusBar.PNG") 0 0 / 100% 100%, #009900;
+  background-blend-mode: multiply;
+}
+
+.ach-bar-label,
+.ach-bar-value {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  color: #fff;
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.ach-bar-label {
+  left: 8px;
+}
+
+.ach-bar-value {
+  right: 8px;
+}
+
+.ach-summary {
+  padding: 4px 40px 12px;
+}
+
+.ach-bar.big {
+  height: 18px;
+}
+
+/* Liste : lignes de 84 px comme le jeu, défilement à droite */
+.ach-list-wrap {
+  position: relative;
+  display: flex;
+  gap: 2px;
+}
+
+.ach-list {
+  flex: 1;
+  min-width: 0;
+  height: min(392px, calc(100vh / var(--ach-z) - 230px));
+  min-height: 170px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ach-list::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ligne : UI-Achievement-Parchment-Horizontal (désaturée tant que ce n'est
+   pas obtenu), bandeau de titre UI-Achievement-Title (486 × 20 utiles :
+   rouge y 0–19, gris y 22–41), icône à gauche, écusson à droite. */
+.ach-row {
+  position: relative;
+  flex: none;
+  min-height: 84px;
+  /* description centrée sur la ligne (Description ancrée TOP, x 0, dans le
+     jeu), dans le même axe que le titre ; avant : 78 / 72, 3 px à droite du
+     centre et 5 px à droite du titre */
+  padding: 30px 75px 8px;
+  box-sizing: border-box;
+  background: url("assets/ui/ach/UI-Achievement-Parchment-Horizontal-Desaturated.PNG") center / cover;
+  border: 1px solid #000;
+  box-shadow: inset 0 0 6px rgb(0 0 0 / 0.6);
+}
+
+.ach-row.earned {
+  background-image: url("assets/ui/ach/UI-Achievement-Parchment-Horizontal.PNG");
+}
+
+.ach-row-title {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 4px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  /* titre centré sur la ligne, comme AchievementTemplate (Label ancré TOP
+     au centre du bandeau) ; avant : 74 / 70, 2,4 px à gauche du centre */
+  padding: 0 72px;
+  background: url("assets/ui/ach/UI-Achievement-Title.PNG") 0 -24.2px / calc(100% * 512 / 486) 70.4px no-repeat;
+  color: #a6a6a6;
+  font-size: 13px;
+  line-height: 14px;
+  white-space: nowrap;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.ach-row.earned .ach-row-title {
+  background-position: 0 0;
+  color: #fff;
+}
+
+.ach-row-date {
+  position: absolute;
+  right: 74px;
+  top: 4px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  color: #fff;
+  font-size: 10px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* icône 40 × 40, cadre 72 × 72 ramené à 58 */
+.ach-row-icon {
+  position: absolute;
+  left: 14px;
+  top: 22px;
+  width: 44px;
+  height: 44px;
+}
+
+.ach-row-iconframe {
+  /* trou du cadre (x 16–55 sur 72, réduit à 58) centré sur l'icône (avant :
+     left −8, 1 px à gauche) */
+  left: -7px;
+  top: -7px;
+  width: 58px;
+  height: 58px;
+  background-size: 103px 103px;
+}
+
+.ach-row:not(.earned) .ach-row-icon img {
+  filter: grayscale(1) brightness(0.8);
+}
+
+/* description : noire sur parchemin coloré, grise ombrée sinon (comme le jeu) */
+.ach-row-desc {
+  margin-top: 4px;
+  text-align: center;
+  color: #a6a6a6;
+  font-size: 12px;
+  line-height: 15px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.ach-row.earned .ach-row-desc {
+  color: #000;
+  text-shadow: none;
+}
+
+.ach-row-shield {
+  right: 6px;
+  top: 22px;
+  background-position: -64px 0;
+}
+
+.ach-row.earned .ach-row-shield {
+  background-position: 0 0;
+}
+
+.ach-row:not(.earned) .ach-row-shield span {
+  color: #a6a6a6;
+}
+
+.ach-bar.small {
+  width: min(220px, 100%);
+  height: 12px;
+  margin: 6px auto 0;
+}
+
+.ach-bar.small::after {
+  inset: -4px;
+  border-width: 8px;
+  border-image-width: 8px;
+}
+
+.ach-bar.small .ach-bar-value {
+  left: 0;
+  right: 0;
+  justify-content: center;
+  font-size: 10px;
+}
+
+/* barre de défilement du jeu : flèches et bouton UI-ScrollBar (32 × 32) */
+.ach-sb {
+  position: relative;
+  flex: none;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ach-sb-btn {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin: -6px 0;
+  background: var(--up);
+}
+
+.ach-sb-btn.up {
+  --up: url("assets/ui/UI-ScrollBar-ScrollUpButton-Up.PNG");
+  --down: url("assets/ui/UI-ScrollBar-ScrollUpButton-Down.PNG");
+  --off: url("assets/ui/UI-ScrollBar-ScrollUpButton-Disabled.PNG");
+}
+
+.ach-sb-btn.down {
+  --up: url("assets/ui/UI-ScrollBar-ScrollDownButton-Up.PNG");
+  --down: url("assets/ui/UI-ScrollBar-ScrollDownButton-Down.PNG");
+  --off: url("assets/ui/UI-ScrollBar-ScrollDownButton-Disabled.PNG");
+}
+
+.ach-sb-btn:hover:not(:disabled) {
+  filter: brightness(1.3);
+}
+
+.ach-sb-btn:active:not(:disabled) {
+  background-image: var(--down);
+}
+
+.ach-sb-btn:disabled {
+  background-image: var(--off);
+}
+
+.ach-sb-track {
+  position: relative;
+  flex: 1;
+  width: 32px;
+  margin: 6px 0;
+}
+
+.ach-sb-knob {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-ScrollBar-Knob.PNG");
+  touch-action: none;
+}
+
+.ach-sb-knob[hidden] {
+  display: none;
+}
+
+/* Butin dans la discussion : couleur de la qualité de l'objet. */
+.chat-line.loot {
+  color: #00aa00;
+}
+
+.chat-line.loot.uncommon {
+  color: #1eff00;
+}
+
+.chat-line.loot.rare {
+  color: #0070dd;
+}
+
+.chat-line.loot.legendary {
+  color: #ff8000;
+}
+
+/* ---------- Sac à dos (world/inventory.js) ----------
+   Textures du client dans assets/ui/bag/. Cadre : UI-BackpackBackground
+   (256 × 256, partie utile x 64–256, soit 192 × 256). Mesures sur la texture,
+   depuis x = 64 : cases de 37 px à gauche 18 + 42 × colonne, en haut
+   65 + 41 × rangée ; barre du nom x 44–160, y 7–25 ; logement du bouton de
+   fermeture : creux x 166–184, y 8–25 (centre 175,5 ; 17) ; creux de la
+   barre de l'argent x 18–178, y 230–243. */
+.inv-bag {
+  position: fixed;
+  right: 6px;
+  bottom: 60px;
+  z-index: 46;
+  zoom: max(var(--hud, 1), 0.7); /* lisible sur téléphone */
+  width: 192px;
+  height: 256px;
+  background: url("assets/ui/bag/UI-BackpackBackground.PNG") -64px 0 no-repeat;
+  filter: drop-shadow(0 4px 10px rgb(0 0 0 / 0.6));
+  font-family: var(--friz);
+  pointer-events: auto;
+}
+
+.inv-bag[hidden] {
+  display: none;
+}
+
+/* nom du sac : GameFontHighlight (blanc), à gauche de la barre */
+.inv-title {
+  position: absolute;
+  left: 48px;
+  top: 7px;
+  width: 108px;
+  height: 18px;
+  line-height: 18px;
+  color: #fff;
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.inv-close {
+  /* partie visible de UI-Panel-MinimizeButton : x 6–24, y 7–24 (19 × 18),
+     exactement la taille du creux : posée dedans (avant : 2 px à gauche,
+     1 px trop haut, collée au bord gauche du logement) */
+  position: absolute;
+  left: 160px;
+  top: 1px;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Up.PNG");
+}
+
+.inv-close:active {
+  background-image: url("assets/ui/UI-Panel-MinimizeButton-Down.PNG");
+}
+
+.inv-close:hover {
+  filter: brightness(1.3);
+}
+
+.inv-slots {
+  position: absolute;
+  left: 18px;
+  top: 65px;
+  display: grid;
+  grid-template-columns: repeat(4, 37px);
+  grid-auto-rows: 37px;
+  column-gap: 5px;
+  row-gap: 4px;
+}
+
+/* Case d'objet (ContainerFrameItemButtonTemplate) : 37 × 37, cadre
+   UI-Quickslot2 de 64 × 64 centré, un pixel plus bas. */
+.inv-slot {
+  position: relative;
+  width: 37px;
+  height: 37px;
+  outline: none;
+}
+
+.inv-slot.full {
+  cursor: var(--cursor);
+}
+
+.inv-slot::before {
+  content: "";
+  position: absolute;
+  left: -13.5px;
+  top: -12.5px;
+  width: 64px;
+  height: 64px;
+  z-index: 3;
+  background: url("assets/ui/bag/UI-Quickslot2.PNG");
+  pointer-events: none;
+}
+
+.inv-icon {
+  position: absolute;
+  inset: 0;
+  width: 37px;
+  height: 37px;
+  display: block;
+}
+
+/* surbrillance au survol : ButtonHilight-Square, en mode additif */
+.inv-slot.full:hover::after,
+.inv-slot.full:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  background: url("assets/ui/bag/ButtonHilight-Square.PNG") 0 0 / 100% 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+/* Bordure de qualité : WhiteIconFrame teintée de la couleur de qualité
+   (multiplication, puis découpe par son propre canal alpha). */
+.inv-border {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: url("assets/ui/bag/WhiteIconFrame.PNG") 0 0 / 100% 100%, var(--q);
+  background-blend-mode: multiply;
+  -webkit-mask: url("assets/ui/bag/WhiteIconFrame.PNG") 0 0 / 100% 100%;
+  mask: url("assets/ui/bag/WhiteIconFrame.PNG") 0 0 / 100% 100%;
+  pointer-events: none;
+}
+
+/* Lueur des objets neufs : atlas Bags (256 × 256), carrés de 41 px
+   bags-glow-white (41, 137), -green (179, 0), -blue (138, 41),
+   -purple (0, 137), -orange (180, 92) ; pulsation comme le jeu. */
+.inv-new {
+  position: absolute;
+  left: -2px;
+  top: -2px;
+  width: 41px;
+  height: 41px;
+  z-index: 5;
+  background: url("assets/ui/bag/Bags.PNG") -41px -137px no-repeat;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  animation: inv-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.inv-new.uncommon {
+  background-position: -179px 0;
+}
+
+.inv-new.rare {
+  background-position: -138px -41px;
+}
+
+.inv-new.epic {
+  background-position: 0 -137px;
+}
+
+.inv-new.legendary {
+  background-position: -180px -92px;
+}
+
+@keyframes inv-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}
+
+/* éclair à l'ouverture : bags-glow-flash (x 12–80, y 11–79), une seule fois */
+.inv-flash {
+  position: absolute;
+  left: -16px;
+  top: -16px;
+  width: 69px;
+  height: 69px;
+  z-index: 5;
+  background: url("assets/ui/bag/Bags.PNG") -12px -11px no-repeat;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  opacity: 0;
+  animation: inv-flash 0.9s ease-out;
+}
+
+@keyframes inv-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .inv-new,
+  .inv-flash {
+    animation: none;
+  }
+}
+
+/* Argent : pièces MoneyFrame (UI-GoldIcon etc., 16 × 16 utiles 13 × 13),
+   chiffres blancs à gauche de chaque pièce, calés à droite de la barre.
+   La barre suit le creux sombre de la texture du sac (y 230–243). */
+.inv-money-bar {
+  position: absolute;
+  left: 20px;
+  top: 230px;
+  width: 152px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.inv-money {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 14px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.inv-coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.inv-coin::after {
+  content: "";
+  width: 13px;
+  height: 13px;
+  background: url("assets/ui/bag/UI-GoldIcon.PNG") 0 0 / 13px 13px;
+}
+
+.inv-coin.silver::after {
+  background-image: url("assets/ui/bag/UI-SilverIcon.PNG");
+}
+
+.inv-coin.copper::after {
+  background-image: url("assets/ui/bag/UI-CopperIcon.PNG");
+}
+
+/* Info-bulle d'objet : le .tooltip du jeu (style.css), posée à côté de la case. */
+.tooltip.inv-tip {
+  position: fixed;
+  z-index: 60;
+  zoom: max(var(--hud, 1), 0.7);
+  width: max-content;
+  max-width: 260px;
+  margin: 0;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.inv-t-level {
+  color: var(--gold);
+}
+
+.inv-money.small {
+  gap: 4px;
+  font-size: 12px;
+}
+
+.inv-t-sell {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Bouton du sac à dos (MainMenuBarBackpackButton) : Button-Backpack-Up en
+   37 × 37 sous le cadre UI-Quickslot2 ; enfoncé, décalé d'un pixel ;
+   ouvert, la surbrillance CheckButtonHilight. Placé par inventory.js, à
+   2 px des bords : le cadre dépasse l'icône de 0,5 px à droite et 1,5 px en
+   bas (UI-Quickslot2 : cadre x 13–50, y 12–50), il restait coupé par
+   l'écran. */
+.inv-button {
+  position: fixed;
+  right: 2px;
+  bottom: 2px;
+  z-index: 21;
+  zoom: max(var(--hud, 1), 0.7);
+  width: 37px;
+  height: 37px;
+  padding: 0;
+  background: url("assets/ui/bag/Button-Backpack-Up.PNG") 0 0 / 100% 100%;
+  cursor: var(--cursor);
+}
+
+.inv-button::before {
+  content: "";
+  position: absolute;
+  left: -13.5px;
+  top: -12.5px;
+  width: 64px;
+  height: 64px;
+  background: url("assets/ui/bag/UI-Quickslot2.PNG");
+  pointer-events: none;
+}
+
+.inv-button:active {
+  background-position: 1px 1px;
+}
+
+.inv-button:hover::after,
+.inv-button.on::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/bag/ButtonHilight-Square.PNG") 0 0 / 100% 100%;
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.inv-button.on::after {
+  background-image: url("assets/ui/CheckButtonHilight.PNG");
+}
+
+/* Lien de haut fait cliquable, et son info-bulle (comme un lien de la
+   discussion du jeu) : au-dessus de la discussion, croix en haut à droite. */
+.chat .ach-link {
+  pointer-events: auto;
+  cursor: var(--cursor);
+}
+
+.chat .ach-link:hover {
+  text-decoration: underline;
+}
+
+.ach-ref {
+  position: fixed;
+  left: 20px;
+  bottom: 300px;
+  z-index: 46;
+  zoom: max(var(--hud, 1), 0.7);
+  width: 280px;
+  padding-right: 28px;
+  font-family: var(--friz);
+  pointer-events: auto;
+}
+
+/* comme ItemRefCloseButton : 32 × 32 accroché au coin haut droit de la
+   bulle (TOPRIGHT, x 1, y 0), donc dans le coin, à hauteur de la première
+   ligne, là où le padding de droite (28 px) lui garde la place. Avant :
+   −12 / −12, la croix flottait à cheval sur le bord, hors du cadre. */
+.ach-ref-close {
+  position: absolute;
+  top: 0;
+  right: -1px;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Up.PNG");
+}
+
+.ach-ref-close:active {
+  background-image: url("assets/ui/UI-Panel-MinimizeButton-Down.PNG");
+}
+
+.ach-ref-name {
+  color: #ffd100;
+  font-size: 14px;
+}
+
+.ach-ref-desc {
+  color: #fff;
+}
+
+.ach-ref-progress {
+  color: #bbb;
+}
+
+.ach-ref-earned {
+  color: #1eff00;
+  margin-top: 4px;
+}
+
+.ach-ref-locked {
+  color: #9d9d9d;
+  margin-top: 4px;
+}
+
+.ach-ref-points {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+}
+
+/* UI-Achievement-TinyShield : écusson de 20 × 18 en haut à gauche d'une
+   texture 32 × 32, à taille réelle comme sur le fronton (.ach-tinyshield).
+   Avant : une case de 16 × 16 qui coupait 4 px à droite et 2 px en bas. */
+.ach-ref-shield {
+  width: 20px;
+  height: 18px;
+  background: url("assets/ui/ach/UI-Achievement-TinyShield.PNG") 0 0 / 32px 32px;
+}
+
+/* Fenêtre de déconnexion : en haut de l'écran comme les StaticPopup du jeu,
+   pour voir le personnage s'asseoir. */
+.menu-layer:has(.wdialog.logout) {
+  align-items: start;
+}
+.wdialog.logout {
+  margin-top: 90px;
+}
+
+/* nom de portail caché derrière le personnage */
+.world-label.behind {
+  opacity: 0;
+}
+
+/* « hidden » doit l'emporter sur le display des étiquettes flottantes
+   (sinon le nom de Chromie reste affiché quand elle est derrière la caméra) */
+.nameplate[hidden],
+.bubble[hidden],
+.world-label[hidden] {
+  display: none;
+}
+
+/* Fenêtre de mort (« Release Spirit »), en haut comme les StaticPopup du jeu */
+.death-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: grid;
+  justify-items: center;
+  align-items: start;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.death-layer[hidden] {
+  display: none;
+}
+
+/* compacte, comme la fenêtre du jeu : une ligne de texte et le bouton */
+.wdialog.death {
+  margin-top: 90px;
+  padding: 0 4px;
+  border-width: 16px;
+  border-image-width: 16px;
+}
+
+.wdialog.death::before {
+  inset: -9px;
+}
+
+.wdialog.death .wdialog-body {
+  width: 180px;
+  text-align: center;
+}
+
+.wdialog.death .logout-text {
+  font-size: 12px;
+}
+
+.wdialog.death .wdialog-footer {
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.wdialog.death .wbtn {
+  width: 120px;
+}
+
+/* Survol d'un objet utilisable (portails) : la roue crantée du jeu, grisée hors de portée */
+#world[data-cursor="interact"] {
+  cursor: url("assets/ui/Interact.PNG") 2 2, auto;
+}
+
+#world[data-cursor="unable-interact"] {
+  cursor: url("assets/ui/UnableInteract.PNG") 2 2, auto;
+}
+
+/* ---------- Discussion du joueur ----------
+   Couleurs du jeu : /say blanc, /yell rouge, émotes orange. */
+.chat-line.say-player {
+  color: #ffffff;
+}
+
+.chat-line.emote {
+  color: #ff8040;
+}
+
+.player-bubble .bubble-text {
+  color: #ffffff;
+}
+
+.player-bubble.yell .bubble-text {
+  color: #ff4040;
+}
+
+/* Zone de saisie (Entrée) : bordure UI-ChatInputBorder du client en trois
+   morceaux. Accrochée comme ChatFrame1EditBox : 5 px de part et d'autre des
+   lignes de discussion (qui commencent à 2 + 32 + 2 = 36 px), 2 px sous
+   elles ; « Say: » à 15 px du bord gauche. */
+.chat-edit {
+  position: absolute;
+  left: 31px;
+  bottom: 66px;
+  width: min(430px, calc(100vw / var(--hud, 1) - 46px));
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 14px 0 15px;
+  background:
+    url("assets/ui/chat/UI-ChatInputBorder-Left2.PNG") left / 32px 32px no-repeat,
+    url("assets/ui/chat/UI-ChatInputBorder-Right2.PNG") right / 32px 32px no-repeat,
+    url("assets/ui/chat/UI-ChatInputBorder-Mid2.PNG") 32px 0 / calc(100% - 64px) 32px no-repeat;
+  pointer-events: auto;
+}
+
+.chat-edit[hidden] {
+  display: none;
+}
+
+.chat-edit-header,
+.chat-edit input {
+  color: #ffffff;
+  font: 13px var(--friz);
+  text-shadow: 1px 1px 0 #000;
+}
+
+.chat-edit[data-mode="yell"] .chat-edit-header,
+.chat-edit[data-mode="yell"] input {
+  color: #ff4040;
+}
+
+.chat-edit input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  caret-color: currentColor;
+}
+
+/* Info-bulle d'objet survolé : en bas à droite, au-dessus des barres, comme le jeu */
+.tooltip.object-tip {
+  position: fixed;
+  right: 16px;
+  bottom: 96px;
+  z-index: 45;
+  zoom: var(--hud, 1);
+  margin: 0;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.tooltip.object-tip[hidden] {
+  display: none;
+}
+
+.object-tip .t-name {
+  color: #ffffff;
+}
+
+.object-tip .t-sub {
+  color: #b4b4b4;
+}
+
+/* ---------- Barre d'incantation (CastingBarFrame du jeu) ----------
+   bordure 256 × 64, barre 195 × 13 au centre, jaune pendant l'incantation,
+   verte à la fin (avec un éclair), rouge si interrompue. */
+.cast-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 150px;
+  z-index: 35;
+  width: 256px;
+  height: 64px;
+  margin-left: -128px;
+  zoom: var(--hud, 1);
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.cast-bar[hidden] {
+  display: none;
+}
+
+.cast-track {
+  /* centrée sur le creux de la bordure (x 34–221, y 28–36 : centre 127,5 ; 32) */
+  position: absolute;
+  left: 30px;
+  top: 26px;
+  width: 195px;
+  height: 13px;
+  background: rgb(0 0 0 / 0.5);
+}
+
+.cast-fill {
+  width: 0;
+  height: 100%;
+  background: url("assets/ui/UI-StatusBar.PNG") 0 0 / 100% 100%;
+  background-color: #ffb300;
+  background-blend-mode: multiply;
+}
+
+.cast-bar.done .cast-fill {
+  background-color: #00ff00;
+}
+
+.cast-bar.failed .cast-fill {
+  background-color: #ff0000;
+}
+
+.cast-spark {
+  position: absolute;
+  top: -9.5px;
+  width: 32px;
+  height: 32px;
+  margin-left: -16px;
+  /* texture additive du jeu (fond noir) : alpha tiré de la luminosité
+     (built/cast-spark.png), sinon le noir resterait visible */
+  background: url("assets/built/cast-spark.png") 0 0 / 32px 32px;
+}
+
+.cast-bar.done .cast-spark,
+.cast-bar.failed .cast-spark {
+  display: none;
+}
+
+.cast-border,
+.cast-flash {
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/cast/UI-CastingBar-Border.PNG") 0 0 / 256px 64px;
+}
+
+.cast-flash {
+  background-image: url("assets/ui/cast/UI-CastingBar-Flash.PNG");
+  mix-blend-mode: plus-lighter;
+  opacity: 0;
+}
+
+.cast-bar.done .cast-flash {
+  animation: cast-flash 0.5s ease-out;
+}
+
+@keyframes cast-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.cast-text {
+  /* même centre que le creux ; le haut compense les lettres de la Friz,
+     sans jambages, qui tomberaient un peu bas */
+  position: absolute;
+  left: 0;
+  right: 1px;
+  top: 25.5px;
+  color: #fff;
+  font-size: 11px;
+  line-height: 13px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ---------- Carte de la zone (M) ----------
+   WorldMapFrame de Classic (built/worldmap-frame.jpg, assemblé depuis les 12
+   morceaux UI-WorldMap-*) : barre de titre, puis le parchemin de 1002 × 668
+   en (11, 73) où le plateau est tracé à l'encre. */
+.world-map {
+  position: fixed;
+  inset: 0;
+  z-index: 48;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  font-family: var(--friz);
+}
+
+.world-map[hidden] {
+  display: none;
+}
+
+.wm-frame {
+  position: relative;
+  width: 1024px;
+  height: 768px;
+  background: url("assets/built/worldmap-frame.jpg") 0 0 / 1024px 768px;
+  pointer-events: auto;
+  /* le liseré d'ombre extérieur (ligne 0, colonnes 0–1 et 1022–1023), à
+     demi transparent dans les textures du jeu, a été aplati sur du vert dans
+     le jpg : un filet verdâtre bordait la carte à gauche, à droite et en
+     haut. On le rogne ; les filets clairs du cadre (x 3 et 1021) restent. */
+  clip-path: inset(1px 2px 0 2px);
+}
+
+/* titre dans la barre de titre du haut (creux y 3–20, filets en 2 et 21),
+   centré comme WorldMapFrameTitle du jeu (GameFontNormal, 12 px). Avant :
+   16 px à y 22, ni dans la barre ni au milieu du bandeau orné (y 22–66),
+   posé sur ses entrelacs. */
+.wm-title {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 3px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.wm-ink,
+.wm-marks {
+  position: absolute;
+  left: 11px;
+  top: 73px;
+  width: 1002px;
+  height: 668px;
+}
+
+/* l'encre se mêle au parchemin */
+.wm-ink {
+  mix-blend-mode: multiply;
+}
+
+/* Case du bouton de fermeture : x 1002–1020, y 3–20 (19 × 18, la partie
+   visible du bouton, x 6–24, y 7–24). Avant : right 4 / top 4, soit 8 px
+   trop à gauche et 8 px trop bas, la case vide restait visible. Dans
+   worldmap-frame.jpg cette case est verdâtre (elle est translucide dans
+   UI-WorldMap-Top4, le montage l'a posée sur du vert) : un fond noir sous le
+   bouton la couvre, coins compris. */
+.wm-frame .close {
+  left: 996px;
+  top: -4px;
+  background:
+    url("assets/ui/UI-Panel-MinimizeButton-Up.PNG"),
+    linear-gradient(#000, #000) 6px 7px / 19px 18px no-repeat;
+}
+
+.wm-frame .close:active {
+  background:
+    url("assets/ui/UI-Panel-MinimizeButton-Down.PNG"),
+    linear-gradient(#000, #000) 6px 7px / 19px 18px no-repeat;
+}
+
+/* temps de recharge sur une case du sac : voile sombre qui se retire en tournant */
+.inv-cd {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: conic-gradient(rgb(0 0 0 / 0.65) var(--p, 360deg), transparent 0);
+  pointer-events: none;
+}
+
+.inv-cd[hidden] {
+  display: none;
+}
+
+.bubble.on {
+  opacity: 1;
+  transition-duration: 0.25s;
+}
+
+/* ---------- Écrans d'accueil (world/glue.js) : connexion, choix du personnage ----------
+   Textures de Classic (assets/ui/glues) : logo World of Warcraft (sans
+   extension), champs et boîtes dans le cadre Glue-Tooltip (built/glue9.png),
+   un seul style de bouton, le rouge Glue-Panel-Button à sa taille d'origine.
+   Mise en page pensée pour 1024 × 768, agrandie d'un bloc par --glue.
+   Pendant ces écrans, l'interface du jeu est cachée. */
+body.glue .hud,
+body.glue .micro-bar,
+body.glue .inv-button,
+body.glue .inv-bag,
+body.glue .bottom,
+body.glue .ach-toasts,
+body.glue .chat-edit {
+  visibility: hidden;
+}
+
+.glue-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  font-family: var(--friz);
+  color: #fff;
+}
+
+/* partout sur les écrans d'accueil, le curseur du jeu (champs et boutons compris) */
+.glue-layer,
+.glue-layer * {
+  cursor: var(--cursor);
+}
+
+.glue-login,
+.glue-select {
+  position: absolute;
+  inset: 0;
+}
+
+.glue-login[hidden],
+.glue-select[hidden],
+.glue-dialog[hidden] {
+  display: none;
+}
+
+/* avant que le monde soit prêt : la nuit ; ensuite, la scène derrière, bords assombris */
+.glue-login {
+  background: radial-gradient(ellipse at 50% 40%, #1b1830 0%, #07060d 70%);
+  transition: background 1.5s;
+}
+
+.glue-login.ready {
+  background: radial-gradient(ellipse at 50% 45%, transparent 40%, rgb(0 0 0 / 0.6) 100%);
+}
+
+.glue-logo {
+  position: absolute;
+  left: 22px;
+  top: 14px;
+  width: 280px;
+  zoom: var(--glue, 1);
+}
+
+/* bloc de connexion, au centre, au-dessus du milieu : champs centrés,
+   intitulés ferrés à gauche sur le bord visible du champ */
+.glue-login-box {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  width: 200px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  zoom: var(--glue, 1);
+}
+
+.glue-label {
+  align-self: stretch;
+  /* aligné sur le bord visible du champ (son fondu fait 4 px) */
+  margin: 10px 0 2px 4px;
+  color: var(--gold);
+  font-size: 15px;
+  /* GlueFontNormal : Friz 15, contour noir et ombre décalée (1, -1) */
+  text-shadow: -1px 0 #000, 1px 0 #000, 0 -1px #000, 0 1px #000, 1px 1px 0 #000, 2px 2px 0 #000;
+}
+
+/* champ : cadre Glue-Tooltip (bord de 16), texte blanc centré */
+/* Champ de connexion du client moderne : un fond noir translucide (75 %) aux
+   bords adoucis, sans cadre (interface/glues/login/login-bg-corner, un coin
+   de 32 px, mis en miroir pour les quatre coins dans built/login-edit9). */
+.glue-edit {
+  box-sizing: border-box;
+  width: 200px;
+  height: 37px;
+  padding: 0 10px;
+  border: 8px solid transparent;
+  border-image: url("assets/built/login-edit9.png") 8 fill / 8px stretch;
+  background: none;
+  outline: 0;
+  color: #fff;
+  font: 15px var(--friz);
+  line-height: 21px;
+  text-align: left;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.glue-login-box .glue-btn {
+  margin-top: 16px;
+}
+
+.glue-remember {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  /* GlueFontNormalSmall, en 10 : or (1, 0,78, 0), contour, ombre */
+  color: #ffc700;
+  font-size: 11px;
+  text-shadow: -1px 0 #000, 1px 0 #000, 0 -1px #000, 0 1px #000, 1px 1px 0 #000, 2px 2px 0 #000;
+}
+
+/* case à cocher du client (UI-CheckBox) : case sombre, coche dorée */
+.glue-check {
+  width: 20px;
+  height: 20px;
+  background: url("assets/ui/UI-CheckBox-Up.PNG") 0 0 / 20px 20px;
+}
+
+.glue-check.on {
+  background:
+    url("assets/ui/UI-CheckBox-Check.PNG") 0 0 / 20px 20px,
+    url("assets/ui/UI-CheckBox-Up.PNG") 0 0 / 20px 20px;
+}
+
+/* Bouton rouge du jeu (Glue-Panel-Button, recadré à 148 × 48 dans built/) :
+   en trois tranches, les bouts intacts et le milieu étiré, pour avoir la
+   largeur qu'on veut sans déformer. La pastille visible fait 37 px de haut. */
+/* texte centré même quand il déborde du milieu étiré (il empiète alors sur les bouts) */
+.glue-btn {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 120px;
+  height: 48px;
+  padding: 0 22px 4px;
+  border-style: solid;
+  border-width: 0 22px;
+  border-image: url("assets/built/glue-btn-up.png") 0 22 fill / 0 22px stretch;
+  background: none;
+  color: var(--gold);
+  font: 14px var(--friz);
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+}
+
+.glue-btn:active:not(:disabled) {
+  border-image-source: url("assets/built/glue-btn-down.png");
+}
+
+.glue-btn:hover:not(:disabled)::after {
+  content: "";
+  position: absolute;
+  inset: 0 -22px;
+  border-style: solid;
+  border-width: 0 22px;
+  border-image: url("assets/built/glue-btn-hl.png") 0 22 fill / 0 22px stretch;
+}
+
+.glue-btn:disabled {
+  border-image-source: url("assets/built/glue-btn-disabled.png");
+  color: #7f7f7f;
+}
+
+/* « Connecting... » et messages : le même cadre fin que les champs */
+.glue-dialog {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  /* l'écran s'assombrit derrière la fenêtre */
+  background: rgb(0 0 0 / 0.5);
+}
+
+.glue-dialog-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 400px;
+  max-width: 460px;
+  /* centré sur le liseré, pas sur la boîte : dans built/glue9 (48 × 48) le
+     filet clair est à 4 px du haut et de la droite mais à 8 px du bas et de la
+     gauche (l'ombre portée). D'où 4 px de plus à gauche qu'à droite, et un
+     bloc remonté de 5 px : 24 px du filet au haut des capitales comme au bas
+     de la pastille du bouton (avant : 29,5 et 18,7). */
+  padding: 9px 18px 13px 22px;
+  zoom: var(--glue, 1);
+  border-style: solid;
+  border-width: 16px;
+  border-image: url("assets/built/glue9.png") 16 fill / 16px stretch;
+  /* fond noir translucide, comme le client, jusqu'au liseré du
+     cadre (dont les 6 premiers pixels sont transparents) */
+  position: relative;
+  isolation: isolate;
+}
+
+.glue-dialog-box::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  z-index: -1;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.glue-dialog-text {
+  margin-bottom: 8px;
+  color: #fff;
+  font-size: 16px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* la pastille ne remplit pas le bas de l'image du bouton : on reprend ce vide */
+.glue-dialog-box .glue-btn {
+  margin: -4px 0 -8px;
+}
+
+.glue-btn[hidden],
+.glue-dialog-box .glue-btn[hidden] {
+  display: none;
+}
+
+/* ---------- choix du personnage ----------
+   Comme le client Classic : logo en haut à gauche, personnage au centre,
+   liste sur toute la hauteur à droite (royaume en tête), « Enter World » en
+   bas au centre avec les flèches de rotation, Delete Character et Back en bas
+   à droite, à la même hauteur. Hors des boutons et de la liste, la souris
+   passe à la scène : cliquer-glisser fait tourner le personnage. */
+/* même logo, même taille qu'à la connexion et au chargement */
+.glue-select .glue-logo {
+  left: 22px;
+  top: 14px;
+  width: 280px;
+}
+
+.glue-charlist {
+  position: absolute;
+  right: calc(12px / var(--glue, 1));
+  top: calc(16px / var(--glue, 1));
+  bottom: calc(96px / var(--glue, 1));
+  width: 230px;
+  /* même cadre que la fenêtre de message (filet à 8 px à gauche, 5 à droite :
+     intérieur x 9–225, centre 117) : le contenu décalé de 2 px à droite, et
+     22 px du filet au haut du royaume comme au bas de « Create New Character »
+     (avant : 24,8 et 19,8) */
+  padding: 5.5px 0 3.5px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  zoom: var(--glue, 1);
+  border-style: solid;
+  border-width: 16px;
+  border-image: url("assets/built/glue9.png") 16 fill / 16px stretch;
+}
+
+.glue-realm {
+  color: #dcdcdc;
+  font-size: 21px;
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* « Change Realm » et « Create New Character » : même largeur, mêmes marges */
+.glue-charlist > .glue-btn {
+  align-self: center;
+  width: 196px;
+  margin-top: -6px;
+}
+
+/* le cadre du personnage choisi va jusqu'au liseré du panneau : la partie
+   visible de built/charselect-highlight (x 4–252 sur 256) couvre tout
+   l'intérieur x 9–225 (avant : 10–220, 1 px de jour à gauche, 5 à droite) */
+.glue-chars {
+  flex: 1;
+  margin: 6px -14.5px 0;
+}
+
+/* personnage de la liste : texte seul, le choisi dans le cadre doré */
+.glue-char {
+  position: relative;
+  width: 100%;
+  padding: 9px 16px 14px;
+  line-height: 1.3;
+  text-align: left;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.glue-char.selected {
+  /* texture additive du jeu, convertie en transparence (le noir disparaît) */
+  background: url("assets/built/charselect-highlight.png") 0 0 / 100% 100% no-repeat;
+}
+
+.glue-char-name {
+  color: var(--gold);
+  font-size: 15px;
+}
+
+.glue-char-info {
+  color: #fff;
+  font-size: 13px;
+}
+
+.glue-char-zone {
+  color: #b4b4b4;
+  font-size: 13px;
+}
+
+.glue-enter {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  zoom: var(--glue, 1);
+}
+
+.glue-enter .glue-btn {
+  min-width: 190px;
+  font-size: 16px;
+}
+
+.glue-arrows {
+  display: flex;
+  gap: 6px;
+  margin-top: -6px;
+}
+
+/* rotation : les boutons carrés du jeu (UI-RotationLeft/Right-Button), 32 × 32 */
+.glue-arrow {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/glues/UI-RotationLeft-Button-Up.PNG") 0 0 / 32px 32px;
+}
+
+.glue-arrow.right {
+  background-image: url("assets/ui/glues/UI-RotationRight-Button-Up.PNG");
+}
+
+.glue-arrow.left:active {
+  background-image: url("assets/ui/glues/UI-RotationLeft-Button-Down.PNG");
+}
+
+.glue-arrow.right:active {
+  background-image: url("assets/ui/glues/UI-RotationRight-Button-Down.PNG");
+}
+
+.glue-arrow:hover::after {
+  content: "";
+  position: absolute;
+  inset: 3px 3px 4px;
+  background: url("assets/built/button-hl-square.png") 0 0 / 100% 100%;
+}
+
+/* le bord droit de la pastille de « Back » (12 px avant le bord de son image)
+   tombe sur le filet droit de la liste (4 px avant le sien) : 8 px de moins
+   que la marge de la liste, qui, elle, n'est pas agrandie par --glue */
+.glue-select-side {
+  position: absolute;
+  right: calc(12px / var(--glue, 1) - 8px);
+  bottom: 32px;
+  display: flex;
+  zoom: var(--glue, 1);
+}
+
+/* la connexion et les messages prennent la souris ; la sélection la laisse à la scène */
+.glue-login,
+.glue-dialog,
+.glue-select > * {
+  pointer-events: auto;
+}
+
+.glue-select,
+.glue-select > .glue-logo {
+  pointer-events: none;
+}

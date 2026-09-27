@@ -1,0 +1,1264 @@
+/* Tout est mis en page en pixels du jeu, dans le cadre de quête d'origine
+   (351 × 440), puis agrandi d'un bloc par --s (calculé dans app.js, plafonné
+   pour que les textures restent nettes). Filtrage bilinéaire, comme le jeu.
+   Textures : assets/ui (client du jeu), assets/icons (Wowhead). */
+
+/* Polices du jeu si elles sont déposées dans assets/fonts, sinon approchantes. */
+@font-face {
+  font-family: "FrizQT";
+  src: url("assets/fonts/FRIZQT__.TTF"), local("Friz Quadrata TT"), local("FrizQuadrataTT");
+}
+@font-face {
+  font-family: "Morpheus";
+  src: url("assets/fonts/MORPHEUS.TTF"), local("Morpheus");
+}
+
+:root {
+  /* curseur du jeu (la flèche gantée), partout comme dans l'interface */
+  --cursor: url("assets/ui/Point.PNG") 1 1, auto;
+  --s: 1;
+  --friz: "FrizQT", "Marcellus", Georgia, serif;
+  --morpheus: "Morpheus", "Almendra", Georgia, serif;
+  --gold: #ffd100;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  cursor: var(--cursor);
+  height: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow-x: hidden;
+  background: radial-gradient(ellipse at 50% 35%, #1d2a3c 0%, #0b0f18 55%, #040507 100%);
+  font-family: var(--friz);
+}
+
+footer {
+  position: fixed;
+  top: 4px;
+  right: 8px;
+  color: #50505a;
+  font: 11px var(--friz);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  background: none;
+  border: none;
+  cursor: var(--cursor);
+}
+
+img {
+  display: block;
+}
+
+/* ---------- Scène et cadre ---------- */
+
+.stage {
+  position: relative;
+  width: 351px;
+  height: 440px;
+  zoom: var(--s);
+}
+
+.qf {
+  position: relative;
+  width: 351px;
+  height: 440px;
+}
+
+.portrait {
+  /* trou du portrait mesuré sur le cadre : x 10–64, y 9–62 */
+  position: absolute;
+  left: 9px;
+  top: 8px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+}
+
+.art {
+  position: absolute;
+  inset: 0;
+  background: url("assets/built/questframe.png") no-repeat;
+  pointer-events: none;
+}
+
+.qf-title {
+  /* intérieur de la barre de titre : x 69–324, y 15–32 */
+  position: absolute;
+  left: 69px;
+  top: 15px;
+  width: 256px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--gold);
+  font-size: 12px;
+  text-shadow: 1px 1px 0 #000; /* ombre du jeu : (1, -1) avec y vers le haut, donc vers le bas ici */
+}
+
+.scroll {
+  /* s'arrête au-dessus du bord déchiré du parchemin (y ≈ 398) */
+  position: absolute;
+  left: 22px;
+  top: 80px;
+  width: 296px;
+  height: 318px;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.content {
+  padding: 6px 12px 12px 10px;
+  color: #000;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.content h2 {
+  margin: 0 0 8px;
+  font: 18px var(--morpheus);
+  color: #000;
+}
+
+.content h3 {
+  margin: 14px 0 4px;
+  font: 17px var(--morpheus);
+  color: #000;
+}
+
+.content p {
+  margin: 0 0 8px;
+}
+
+.ask {
+  font-size: 14px;
+}
+
+.hint {
+  color: #3a2408;
+}
+
+/* Barre de défilement du jeu dans la colonne de droite du cadre :
+   intérieur x 324–342 (entre les filets x 323 et 343), case du haut
+   y 73–89, case du bas y 393–409 (sous le filet y 391–392). */
+.sb {
+  /* Les textures font 32 × 32, partie visible 19 × 17 en (6, 7) : exactement
+     la taille des cases, on les y pose à taille réelle (x 318 + 6 = 324).
+     Avant : x 319, les boutons et le curseur mordaient d'un pixel sur le
+     filet droit. Même colonne dans le journal (questlog-dual). */
+  position: absolute;
+  left: 318px;
+  top: 66px;
+  width: 32px;
+  height: 344px;
+}
+
+.sb-btn {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  background: var(--up);
+}
+
+.sb-btn.up {
+  top: 0;
+  --up: url("assets/ui/UI-ScrollBar-ScrollUpButton-Up.PNG");
+  --down: url("assets/ui/UI-ScrollBar-ScrollUpButton-Down.PNG");
+  --off: url("assets/ui/UI-ScrollBar-ScrollUpButton-Disabled.PNG");
+  --hl: url("assets/ui/UI-ScrollBar-ScrollUpButton-Highlight.PNG");
+}
+
+.sb-btn.down {
+  /* 66 + 320 + 7 = 393, haut de la case du bas (avant : 318, 2 px trop haut,
+     sur le filet qui la sépare de la glissière) */
+  top: 320px;
+  --up: url("assets/ui/UI-ScrollBar-ScrollDownButton-Up.PNG");
+  --down: url("assets/ui/UI-ScrollBar-ScrollDownButton-Down.PNG");
+  --off: url("assets/ui/UI-ScrollBar-ScrollDownButton-Disabled.PNG");
+  --hl: url("assets/ui/UI-ScrollBar-ScrollDownButton-Highlight.PNG");
+}
+
+.sb-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--hl);
+  mix-blend-mode: plus-lighter; /* ADD, comme le jeu */
+  opacity: 0;
+}
+
+.sb-btn:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+.sb-btn:active:not(:disabled) {
+  background-image: var(--down);
+}
+
+.sb-btn:disabled {
+  background-image: var(--off);
+}
+
+.sb-track {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.sb-thumb {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-ScrollBar-Knob.PNG");
+}
+
+/* Bouton de fermeture du jeu, dans la case noire en haut à droite
+   (x 328–346, y 15–32 : 19 × 18, la taille exacte de la partie visible de
+   UI-Panel-MinimizeButton, x 6–24, y 7–24). Avant : top 7, un pixel trop
+   haut, sur le filet du haut de la case. */
+.close {
+  position: absolute;
+  left: 322px;
+  top: 8px;
+  width: 32px;
+  height: 32px;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Up.PNG");
+}
+
+.close::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/UI-Panel-MinimizeButton-Highlight.PNG");
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter; /* ADD, comme le jeu */
+  opacity: 0;
+}
+
+.close:hover::after,
+.close:focus-visible::after {
+  opacity: 1;
+}
+
+.close:focus-visible {
+  outline: none;
+}
+
+.close:active {
+  background-image: url("assets/ui/UI-Panel-MinimizeButton-Down.PNG");
+}
+
+/* Barre des boutons au bas du cadre (intérieur x 21–338) : deux boutons au
+   plus, un à chaque bout, comme la fenêtre de quête du jeu. Les séparateurs
+   des trois emplacements d'origine sont effacés de built/questframe.png. */
+.slot {
+  position: absolute;
+  /* centrés sur la bande sombre du bas (y 414–428), collés à ses bords
+     (x 21–338 ; le bouton visible fait x 1–78 de built/btn-up.png, liseré
+     sombre compris) : bouton de gauche à x 21, celui de droite finit à
+     x 338. Avant : slot-0 à 19, son liseré sur le cadre, 1 px plus à
+     gauche que le bouton de droite n'est à droite. */
+  top: 410px;
+  height: 21px;
+  display: flex;
+}
+
+.slot-0 { left: 20px; width: 104px; }
+.slot-1 { left: 131px; width: 108px; }
+.slot-2 { left: 236px; width: 104px; }
+
+/* ---------- Bouton rouge du jeu ---------- */
+
+.wbtn {
+  position: relative;
+  width: 100%;
+  height: 21px;
+  border-style: solid;
+  border-width: 0 12px;
+  border-image: url("assets/built/btn-up.png") 0 12 fill / 0 12px stretch;
+  color: var(--gold);
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+}
+
+.wbtn::after {
+  content: "";
+  position: absolute;
+  inset: 0 -12px;
+  border-style: solid;
+  border-width: 0 12px;
+  border-image: url("assets/built/btn-highlight.png") 0 12 fill / 0 12px stretch;
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter; /* ADD, comme le jeu */
+  opacity: 0;
+}
+
+.wbtn:hover:not(:disabled)::after {
+  opacity: 1;
+}
+
+.wbtn:active:not(:disabled) {
+  border-image-source: url("assets/built/btn-down.png");
+  padding-top: 2px;
+  padding-left: 2px;
+}
+
+.wbtn:disabled {
+  border-image-source: url("assets/built/btn-disabled.png");
+  color: #7f7f7f;
+  cursor: var(--cursor);
+}
+
+/* ---------- Dialogue de PNJ ---------- */
+
+.gossip {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+}
+
+.gossip-opt {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  padding: 2px 4px 2px 2px;
+  text-align: left;
+  color: #000;
+  font-size: 13px;
+  line-height: 16px;
+}
+
+.gossip-opt img {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.gossip-opt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("assets/ui/UI-QuestTitleHighlight.PNG") 0 0 / 100% 100%;
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter; /* ADD, comme le jeu */
+  opacity: 0;
+}
+
+.gossip-opt:hover::before,
+.gossip-opt:focus-visible::before,
+.gossip-opt.selected::before {
+  opacity: 1;
+}
+
+.gossip-opt:focus-visible {
+  outline: none;
+}
+
+/* ---------- Objets de récompense ---------- */
+/* D'après QuestItemTemplate (147 px de large, icône 39), resserré à 134 px
+   pour tenir deux colonnes sur le parchemin : icône 36, cadre du nom posé
+   10 px sous le bord droit de l'icône, texte 15 px plus loin. */
+
+.item {
+  position: relative;
+  display: block;
+  width: 134px;
+  height: 36px;
+  margin: 6px 0 8px;
+  text-align: left;
+}
+
+.item::before {
+  /* cadre du nom : partie visible 106 × 42, centrée sur l'icône */
+  content: "";
+  position: absolute;
+  left: 26px;
+  top: -14px;
+  width: 118px;
+  height: 64px;
+  background: url("assets/ui/UI-QuestItemNameFrame.PNG") 0 0 / 100% 100%;
+}
+
+.item-slot {
+  position: relative;
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+.item-icon {
+  width: 36px;
+  height: 36px;
+}
+
+/* Cadre d'emplacement du jeu autour de l'icône (comme les boutons d'action). */
+.item-slot::after {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: -13px;
+  width: 64px;
+  height: 64px;
+  background: url("assets/ui/UI-Quickslot2.PNG");
+  pointer-events: none;
+}
+
+.item-name {
+  position: absolute;
+  left: 41px;
+  top: 0;
+  width: 86px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  color: #fff;
+  font-size: 11px;
+  line-height: 12px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.q-rare .item-name { color: #3d9cff; }
+.q-legendary .item-name { color: #ff8000; }
+
+/* Surbrillance du choix : les deux cases d'UI-QuestItemHighlight, recalées
+   sur l'icône et sur le cadre du nom (assets/built/itemhl.png). */
+button.item::after {
+  content: "";
+  position: absolute;
+  left: -8px;
+  top: -8px;
+  width: 150px;
+  height: 56px;
+  background: url("assets/built/itemhl.png");
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter; /* ADD, comme le jeu */
+  opacity: 0;
+  pointer-events: none;
+}
+
+button.item:hover::after {
+  opacity: 0.5;
+}
+
+button.item[aria-pressed="true"]::after {
+  opacity: 1;
+}
+
+button.item:focus-visible {
+  outline: none;
+}
+
+button.item:focus-visible::after {
+  opacity: 0.5;
+}
+
+.item-grid {
+  display: grid;
+  grid-template-columns: 134px 134px;
+  gap: 8px 6px;
+  padding: 3px 0;
+}
+
+.item-grid .item {
+  margin: 0;
+}
+
+.counter {
+  margin-top: 6px !important;
+  color: #3a2408;
+}
+
+/* ---------- Curseur des options du jeu ---------- */
+
+.wslider {
+  margin-top: 18px;
+}
+
+.wslider-track {
+  position: relative;
+  height: 17px;
+  margin: 0 6px;
+  border-style: solid;
+  border-width: 6px;
+  border-image: url("assets/built/slider9.png") 8 fill / 6px stretch;
+  background: url("assets/ui/UI-SliderBar-Background.PNG");
+  background-clip: padding-box;
+}
+
+.wslider input {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: -16px;
+  right: -16px;
+  top: -13px; /* partie visible du curseur centrée sur la piste */
+  height: 32px;
+  margin: 0;
+  background: transparent;
+  cursor: var(--cursor);
+}
+
+.wslider input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: url("assets/ui/UI-SliderBar-Button-Horizontal.PNG");
+}
+
+.wslider input::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 0;
+  background: url("assets/ui/UI-SliderBar-Button-Horizontal.PNG");
+}
+
+.wslider input:focus-visible {
+  outline: none;
+}
+
+.wslider-labels {
+  display: flex;
+  justify-content: space-between;
+  margin: 3px 8px 0;
+  font-size: 11px;
+  color: #3a2408;
+}
+
+.slider-caption {
+  min-height: 3.2em;
+  margin-top: 16px !important;
+  text-align: center;
+  font-size: 14px;
+}
+
+/* ---------- Barre d'action et cadran ---------- */
+
+.schedule {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.actionbar {
+  display: flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+/* Bouton d'action du jeu : 36 × 36, cadre UI-Quickslot2 (64 × 64) centré
+   avec 1 px de décalage vers le bas, surbrillances en mode additif. */
+.abtn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+}
+
+.abtn::after {
+  content: "";
+  position: absolute;
+  left: -14px;
+  top: -13px;
+  width: 64px;
+  height: 64px;
+  background: url("assets/ui/UI-Quickslot2.PNG");
+  pointer-events: none;
+}
+
+.abtn-icon {
+  width: 36px;
+  height: 36px;
+  filter: grayscale(1) brightness(0.45);
+}
+
+.abtn.checked .abtn-icon {
+  filter: none;
+}
+
+.abtn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: url("assets/ui/ButtonHilight-Square.PNG") 0 0 / 100% 100%;
+  mix-blend-mode: screen;
+  mix-blend-mode: plus-lighter;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.abtn:hover::before,
+.abtn:focus-visible::before {
+  opacity: 1;
+}
+
+.abtn.checked::before {
+  background-image: url("assets/ui/CheckButtonHilight.PNG");
+  opacity: 1;
+}
+
+.abtn:focus-visible {
+  outline: none;
+}
+
+.hotkey {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;
+  color: #bfbfbf;
+  font: 10px/10px Arial, sans-serif;
+  text-shadow: 1px -1px 0 #000, -1px 1px 0 #000;
+}
+
+.macro {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+  font-size: 10px;
+  line-height: 11px;
+  text-shadow: 1px -1px 0 #000, -1px 1px 0 #000;
+}
+
+/* Cadran : anneau de la minicarte Classic (144 px, réduit à 128), fond sombre,
+   balayage façon temps de recharge, curseur qui court sur l'anneau. */
+@property --deg {
+  syntax: "<angle>";
+  inherits: true;
+  initial-value: 0deg;
+}
+
+.dial {
+  --deg: 30deg;
+  position: relative;
+  transition: --deg 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+  width: 128px;
+  height: 128px;
+  touch-action: none;
+  user-select: none;
+  cursor: var(--cursor);
+  outline: none;
+}
+
+.dial-face,
+.dial-sweep {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+}
+
+.dial-face {
+  background: radial-gradient(circle, #6a5431 0%, #3a2d17 60%, #1a130a 100%);
+}
+
+/* L'icône de la montre, à sa taille d'origine pour rester nette. */
+.dial-icon {
+  position: absolute;
+  left: 36px;
+  top: 36px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+/* La partie choisie reste éclairée, le reste s'assombrit. */
+.dial-sweep {
+  background: conic-gradient(rgb(255 209 0 / 0.22) 0 var(--deg), rgb(0 0 0 / 0.55) var(--deg) 360deg);
+}
+
+.dial-ring {
+  position: absolute;
+  inset: 0;
+  width: 128px;
+  height: 128px;
+}
+
+.dial:focus-visible .dial-ring {
+  filter: brightness(1.4);
+}
+
+.dial-value {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffea8a;
+  font-size: 22px;
+  text-shadow: 0 0 2px #000, 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+}
+
+.dial.dragging {
+  transition-duration: 0.12s;
+}
+
+/* 24 graduations, plus marquées toutes les 6 heures, sur l'anneau intérieur. */
+.dial-ticks {
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from -1deg, rgb(255 225 140 / 0.9) 0 2deg, transparent 2deg 90deg),
+    repeating-conic-gradient(from -0.5deg, rgb(255 225 140 / 0.45) 0 1deg, transparent 1deg 15deg);
+  -webkit-mask: radial-gradient(circle, transparent 47px, #000 48px, #000 54px, transparent 55px);
+  mask: radial-gradient(circle, transparent 47px, #000 48px, #000 54px, transparent 55px);
+  pointer-events: none;
+}
+
+/* L'aiguille tourne avec --deg ; le curseur du jeu est à son bout, sur
+   l'anneau (rayon 58). Partie visible du curseur : 12 × 19, centrée en 15 × 15.5. */
+.dial-hand {
+  position: absolute;
+  inset: 0;
+  transform: rotate(var(--deg));
+  pointer-events: none;
+}
+
+.dial-knob {
+  position: absolute;
+  left: 49px;
+  top: -9.5px;
+  width: 32px;
+  height: 32px;
+  animation: knob-glow 2.4s ease-in-out infinite;
+}
+
+@keyframes knob-glow {
+  50% {
+    filter: brightness(1.35) drop-shadow(0 0 3px rgb(255 209 0 / 0.9));
+  }
+}
+
+.dial-ring {
+  transition: filter 0.2s;
+}
+
+.dial.dragging .dial-ring,
+.dial:hover .dial-ring {
+  filter: brightness(1.25) drop-shadow(0 0 4px rgb(255 209 0 / 0.7));
+}
+
+.dial-value {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.dial-value .hh,
+.dial-value .mm {
+  width: 2ch;
+}
+
+.dial-value .hh {
+  text-align: right;
+}
+
+.schedule-summary {
+  text-align: center;
+}
+
+/* ---------- Puces, info-bulle, réputation ---------- */
+
+.bullets {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.bullets li {
+  position: relative;
+  padding-left: 16px;
+  margin-bottom: 3px;
+}
+
+.bullets li::before {
+  content: "";
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  background: url("assets/ui/UI-Quest-BulletPoint.PNG");
+}
+
+.tooltip {
+  /* GameTooltip : bord de 16 px, fond inséré de 5 px, texte à 10 px du bord */
+  position: relative;
+  z-index: 0;
+  margin: 8px 0 6px;
+  padding: 10px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 14px;
+}
+
+.tooltip::before {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  z-index: -1;
+  background: rgb(13 13 28 / 0.91);
+}
+
+.tooltip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 16px solid transparent;
+  border-image: url("assets/built/tooltip9.png") 16 / 16px stretch;
+  pointer-events: none;
+}
+
+.t-name {
+  font-size: 14px;
+  line-height: 16px;
+  color: #ff8000;
+}
+
+.t-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.t-green { color: #1eff00; }
+.t-red { color: #ff2020; }
+.t-flavor { color: var(--gold); margin-top: 2px; }
+
+.rep-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.rep-row {
+  display: grid;
+  grid-template-columns: 1fr 140px;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  line-height: 13px;
+}
+
+/* Barre de réputation : cadre du jeu en trois morceaux (assets/built/repbar.png,
+   21 px de haut), remplissage de 13 px vu à travers son creux. */
+.rep-bar {
+  position: relative;
+  height: 21px;
+}
+
+.rep-bar::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 4px;
+  height: 13px;
+  background: rgb(0 0 0 / 0.3);
+}
+
+.rep-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-style: solid;
+  border-width: 0 12px;
+  border-image: url("assets/built/repbar.png") 0 12 fill / 0 12px stretch;
+  pointer-events: none;
+}
+
+.rep-fill {
+  position: absolute;
+  left: 6px;
+  top: 4px;
+  width: calc((100% - 12px) * var(--p) / 100);
+  height: 13px;
+  background-image: url("assets/ui/UI-StatusBar.PNG");
+  background-size: 100% 100%;
+  /* overlay : la couleur de la réputation garde son éclat, la texture du
+     jeu n'apporte que son relief (en multiply, tout virait au noir) */
+  background-blend-mode: overlay;
+}
+
+.rep-bar span {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 10px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* ---------- Barre principale, XP et griffons ---------- */
+/* Tout en bas de l'écran, comme en jeu. Bouts repris de mainbar.png, milieu
+   répété (bar-tile.png : deux bulles d'XP sur la section sans cases de
+   UI-MainMenuBar-Dwarf). Le remplissage passe sous la bande, par ses jours. */
+
+.bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mainbar {
+  position: relative;
+  pointer-events: auto;
+  height: 55px;
+  zoom: var(--s);
+}
+
+/* Seule la bande d'XP (12 px) est gardée, posée au ras du bas de l'écran ;
+   les griffons restent à leur place, pieds en bas. */
+.bar-art {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 12px;
+  z-index: 1;
+  background:
+    url("assets/built/strip-left.png") left top no-repeat,
+    url("assets/built/strip-right.png") right top no-repeat,
+    url("assets/built/bar-strip.png") 6px 0 repeat-x;
+}
+
+.xp {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  /* creux des bulles : lignes 5 à 10 de la bande (bar-strip, 12 px ; alpha
+     nul de 5 à 10, filet du bas en 11). Avant : 5 px de haut (lignes 6 à 10),
+     la ligne 5 laissait voir le monde entre le filet et le remplissage. */
+  bottom: 1px;
+  height: 6px;
+  background: rgb(0 0 0 / 0.7);
+}
+
+.xp-fill {
+  height: 100%;
+  background: url("assets/built/xpfill.png") 0 0 / 100% 100%;
+  transition: width 0.4s;
+}
+
+.xp-label {
+  /* centré sur le creux (lignes 5 à 10, centre 8), un pixel au-dessus comme
+     le texte de la barre du jeu (OverlayFrame.Text : CENTER, y = 1) : milieu
+     des capitales à 6,6. Avant : 5,6, à cheval sur le filet du haut. */
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  z-index: 2;
+  text-align: center;
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  text-shadow: 1px 1px 0 #000;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+/* Comme en jeu, le texte de l'XP n'apparaît qu'au survol. */
+.mainbar:hover .xp-label {
+  opacity: 1;
+}
+
+/* Griffon 128 × 128 centré à 32 px de chaque bout, pieds au ras du bas. */
+.gryphon {
+  display: none;
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  width: 128px;
+  height: 128px;
+  z-index: 3;
+}
+
+.with-gryphons .gryphon {
+  display: block;
+}
+
+.gryphon.left {
+  left: -96px;
+}
+
+.gryphon.right {
+  right: -96px;
+  transform: scaleX(-1);
+}
+
+/* Info-bulle posée par-dessus le cadre, au survol de l'objet. */
+.tooltip.floating {
+  position: absolute;
+  z-index: 20;
+  width: 250px;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Texte de quête révélé lettre à lettre (voir typewrite dans app.js). */
+.content .tw {
+  opacity: 0;
+  transition: opacity 0.35s linear;
+}
+
+.content.typed .tw {
+  opacity: 1;
+}
+
+.content.typed-now .tw {
+  transition: none;
+  opacity: 1;
+}
+
+/* options : cachées pendant l'écriture, puis toutes visibles d'un coup */
+.content .tw-later {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease-out var(--tw-after, 0s), visibility 0s linear var(--tw-after, 0s);
+}
+
+.content.typed .tw-later {
+  opacity: 1;
+  visibility: visible;
+}
+
+.content.typed-now .tw-later {
+  transition: none;
+  opacity: 1;
+  visibility: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content .tw,
+  .content .tw-later {
+    transition: none;
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
+/* ---------- Journal de quêtes ----------
+   Cadre double de Wrath/MoP Classic (UI-QuestLogDualPane, 682 × 440),
+   géométrie mesurée sur la texture : liste x 20–319 / y 74–409, colonne de
+   défilement x 324–342 et x 654–672, parchemin x 348–650 / y 77–408,
+   emplacements de boutons y 413–429. */
+
+.stage.log,
+.stage.log .qf {
+  width: 682px;
+}
+
+.stage.log .art {
+  background-image: url("assets/built/questlog-dual.png");
+}
+
+.log-title {
+  width: 586px;
+}
+
+.log-close {
+  left: 652px;
+}
+
+.log-count {
+  position: absolute;
+  right: 26px;
+  top: 46px;
+  color: #fff;
+  font-size: 11px;
+  text-shadow: 1px 1px 0 #000;
+}
+
+.log-count span {
+  color: var(--gold);
+}
+
+.log-list-scroll {
+  left: 20px;
+  top: 76px;
+  width: 300px;
+  height: 332px;
+}
+
+.log-detail-scroll {
+  left: 352px;
+  top: 82px;
+  width: 296px;
+  height: 322px;
+}
+
+.log-sb-detail {
+  /* colonne x 654–672 (filets x 653 et 673) : 654 − 6 */
+  left: 648px;
+}
+
+.log-slot-0 { left: 21px; width: 102px; }
+.log-slot-1 { left: 131px; width: 89px; }
+.log-slot-2 { left: 227px; width: 91px; }
+.log-slot-3 { left: 597px; width: 73px; }
+
+.log-list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 6px 4px 2px;
+}
+
+/* Ligne de la liste (QuestLogTitleButton) : 16 px, texte à 20 px du bord,
+   étiquette « (Complete) » calée à droite, même couleur. */
+.log-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 4px 0 20px;
+  font-size: 12px;
+  text-align: left;
+  color: var(--c);
+  text-shadow: 1px 1px 0 #000;
+  white-space: nowrap;
+}
+
+.log-row-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-row-tag {
+  margin-left: 6px;
+}
+
+/* surbrillance : UI-QuestLogTitleHighlight teinte de la couleur de la ligne (ADD) */
+.log-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 2px;
+  background: var(--c);
+  mask: url("assets/built/qlog-highlight.png") 0 0 / 100% 100%;
+  opacity: 0;
+}
+
+.log-row:hover::before,
+.log-row.selected::before {
+  opacity: 1;
+}
+
+.log-row:hover,
+.log-row.selected {
+  color: #fff;
+}
+
+.log-header {
+  --c: #b3b3b3;
+  padding-left: 20px;
+}
+
+.log-toggle {
+  position: absolute;
+  left: 2px;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  background: url("assets/ui/qlog/UI-MinusButton-Up.PNG");
+}
+
+.log-toggle.plus {
+  background-image: url("assets/ui/qlog/UI-PlusButton-Up.PNG");
+}
+
+.log-header:active .log-toggle {
+  background-image: url("assets/ui/qlog/UI-MinusButton-Down.PNG");
+}
+
+.log-header:active .log-toggle.plus {
+  background-image: url("assets/ui/qlog/UI-PlusButton-Down.PNG");
+}
+
+.log-quest {
+  padding-left: 20px;
+}
+
+.log-empty {
+  margin: 8px 0 0 20px;
+  color: #b3b3b3;
+  font-size: 12px;
+}
+
+/* parchemin : QuestFont noir ; objectif rempli en gris foncé (0.2), comme le jeu */
+.log-objective {
+  margin: 0 0 2px !important;
+  color: #000;
+}
+
+.log-objective.finished {
+  color: #333;
+}
+
+.log-detail h3 {
+  margin-top: 12px;
+}
+
+.log-xp {
+  margin-top: 8px !important;
+}
+
+/* ligne d'expérience sous les récompenses */
+.xp-line {
+  color: #3a2408;
+}
+
+
+/* Roulement de tambour avant le verdict : les lignes apparaissent une à une. */
+.drum {
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.35s;
+}
+.drum.shown {
+  opacity: 1;
+}

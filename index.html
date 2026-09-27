@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Which WoW should I play?</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Almendra&family=Marcellus&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css?v=11" />
+    <link rel="stylesheet" href="world.css?v=47" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "./assets/vendor/three.module.min.js",
+          "three/addons/": "./assets/vendor/addons/"
+        }
+      }
+    </script>
+  </head>
+  <body class="world">
+    <!-- Le monde 3D ; la fenêtre de quête (app.js) s'ouvre quand on parle à Chromie.
+         Le quiz seul, sans le monde : quiz.html -->
+    <canvas id="world"></canvas>
+    <div id="world-ui"></div>
+    <main id="app"></main>
+    <footer>Fan-made quiz. Not affiliated with Blizzard Entertainment.</footer>
+    <script>
+      window.WORLD = true;
+    </script>
+    <script src="data.js?v=7"></script>
+    <script src="app.js?v=17"></script>
+    <script type="module" src="world/main.js?v=132"></script>
+  </body>
+</html>
