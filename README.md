@@ -56,3 +56,14 @@ sélection du personnage (Leeroy), avant le chargement et l'arrivée du ciel.
 - `assets/models/timeways`, `assets/textures/timeways` : la zone, refaite par `tools/build_timeways.py`
 
 Projet privé, non affilié à Blizzard Entertainment.
+
+## Mentions
+
+Projet de fan, non commercial, sans lien avec Blizzard Entertainment ni
+approuvé par elle. World of Warcraft, ses personnages, modèles, textures,
+sons et musiques sont des marques et la propriété de Blizzard Entertainment,
+Inc.
+
+*Fan project, non-commercial. Not affiliated with or endorsed by Blizzard
+Entertainment. World of Warcraft and its game assets are trademarks and
+property of Blizzard Entertainment, Inc.*

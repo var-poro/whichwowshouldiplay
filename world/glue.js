@@ -174,6 +174,14 @@ export function createGlue({ onCharSelect, onEnterWorld, onRotate, level = () =>
       glueButton("Login", () => connect()),
       el("label", "glue-remember", remember, el("span", null, "Remember Account Name")),
     ),
+    // à la place du copyright du jeu, en bas au centre : la mention de projet de fan
+    el(
+      "div",
+      "glue-legal",
+      "Fan project, non-commercial. Not affiliated with or endorsed by Blizzard Entertainment.",
+      el("br"),
+      "World of Warcraft and its game assets are trademarks and property of Blizzard Entertainment, Inc.",
+    ),
   );
   login.querySelector(".glue-logo").src = "assets/built/wow-logo.png";
   const music = loginMusic();

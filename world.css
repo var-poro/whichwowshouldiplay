@@ -2640,6 +2640,21 @@ body.glue .chat-edit {
 
 /* bloc de connexion, au centre, au-dessus du milieu : champs centrés,
    intitulés ferrés à gauche sur le bord visible du champ */
+/* mention de projet de fan, là où le jeu met son copyright : petit, gris,
+   centré en bas de l'écran de connexion */
+.glue-legal {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 10px;
+  zoom: var(--glue, 1);
+  color: #a8a8a8;
+  font: 10px/14px var(--friz);
+  text-align: center;
+  text-shadow: 1px 1px 0 #000;
+  pointer-events: none;
+}
+
 .glue-login-box {
   position: absolute;
   left: 50%;
